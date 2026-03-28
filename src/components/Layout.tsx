@@ -17,45 +17,67 @@ export default function Layout() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const sourceRef = useRef<SourceViewHandle>(null);
 
-  // Listen for file open events from Tauri (double-click on .md file)
+  // Helper to import a file from a path (Tauri only)
+  const importFromPath = useCallback(async (filePath: string) => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const content = await invoke<string>('read_file', { path: filePath });
+      const fileName = filePath.split('/').pop()?.replace(/\.(md|markdown|mdx)$/i, '') || 'Untitled';
+      const hasFrontmatter = content.startsWith('---\n');
+      const fullContent = hasFrontmatter
+        ? content
+        : `---\ntitle: ${fileName}\nstatus: Draft\nicon: "\uD83D\uDCC4"\nbreadcrumb: Opened\ncover: \n---\n\n${content}`;
+      dispatch({
+        type: 'ADD_DOCUMENT',
+        doc: {
+          id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          title: fileName,
+          icon: '\uD83D\uDCC4',
+          content: fullContent,
+          parentId: null,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          isFavorite: false,
+        },
+      });
+    } catch (err) {
+      console.error('Failed to read file:', err);
+    }
+  }, [dispatch]);
+
+  // Listen for Tauri events: open-file (double-click), drop-files (drag-drop), drag enter/leave
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    const unlisteners: (() => void)[] = [];
     (async () => {
       try {
         const { listen } = await import('@tauri-apps/api/event');
-        const { invoke } = await import('@tauri-apps/api/core');
-        unlisten = (await listen<string>('open-file', async (event) => {
-          const filePath = event.payload;
-          try {
-            const content = await invoke<string>('read_file', { path: filePath });
-            const fileName = filePath.split('/').pop()?.replace(/\.(md|markdown|mdx)$/i, '') || 'Untitled';
-            const hasFrontmatter = content.startsWith('---\n');
-            const fullContent = hasFrontmatter
-              ? content
-              : `---\ntitle: ${fileName}\nstatus: Draft\nicon: "\uD83D\uDCC4"\nbreadcrumb: Opened\ncover: \n---\n\n${content}`;
-            dispatch({
-              type: 'ADD_DOCUMENT',
-              doc: {
-                id: `doc-${Date.now()}`,
-                title: fileName,
-                icon: '\uD83D\uDCC4',
-                content: fullContent,
-                parentId: null,
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-                isFavorite: false,
-              },
-            });
-          } catch (err) {
-            console.error('Failed to read file:', err);
+
+        // File opened via double-click
+        const u1 = await listen<string>('open-file', (event) => {
+          importFromPath(event.payload);
+        });
+        unlisteners.push(u1 as unknown as () => void);
+
+        // Files/folders dropped onto window
+        const u2 = await listen<string[]>('drop-files', (event) => {
+          for (const filePath of event.payload) {
+            importFromPath(filePath);
           }
-        })) as unknown as () => void;
+          setIsDragOver(false);
+        });
+        unlisteners.push(u2 as unknown as () => void);
+
+        // Drag enter/leave for overlay
+        const u3 = await listen('drag-enter', () => setIsDragOver(true));
+        unlisteners.push(u3 as unknown as () => void);
+        const u4 = await listen('drag-leave', () => setIsDragOver(false));
+        unlisteners.push(u4 as unknown as () => void);
       } catch {
-        // Not running in Tauri — ignore
+        // Not running in Tauri — web drag-drop still works via HTML5 API
       }
     })();
-    return () => unlisten?.();
-  }, [dispatch]);
+    return () => unlisteners.forEach(u => u());
+  }, [importFromPath]);
 
   const openPalette = useCallback(() => setPaletteOpen(true), []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
