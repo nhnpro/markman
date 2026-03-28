@@ -16,6 +16,7 @@ export interface AppState {
   rightSidebarOpen: boolean;
   isFlipped: boolean;
   editMode: boolean;
+  darkMode: boolean;
 }
 
 export type AppAction =
@@ -27,4 +28,5 @@ export type AppAction =
   | { type: 'TOGGLE_LEFT_SIDEBAR' }
   | { type: 'TOGGLE_RIGHT_SIDEBAR' }
   | { type: 'SET_FLIPPED'; flipped: boolean }
-  | { type: 'TOGGLE_EDIT_MODE' };
+  | { type: 'TOGGLE_EDIT_MODE' }
+  | { type: 'TOGGLE_DARK_MODE' };

@@ -7,11 +7,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:pages": "VITE_BASE=/markman/ tsc -b && VITE_BASE=/markman/ vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@mdxeditor/editor": "^3.53.1",
+    "@tauri-apps/api": "^2.10.1",
+    "prismjs": "^1.30.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
@@ -21,7 +27,9 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@tailwindcss/vite": "^4.2.2",
+    "@tauri-apps/cli": "^2.10.1",
     "@types/node": "^24.12.0",
+    "@types/prismjs": "^1.26.6",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",

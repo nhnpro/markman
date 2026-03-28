@@ -1,6 +1,53 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Document } from '../types';
+
+const isMdFile = (name: string) => /\.(md|markdown|mdx)$/i.test(name);
+
+function importFileToStore(
+  file: File,
+  breadcrumb: string,
+  dispatch: ReturnType<typeof useApp>['dispatch']
+) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = reader.result as string;
+    const fileName = file.name.replace(/\.(md|markdown|mdx)$/i, '');
+    const hasFrontmatter = text.startsWith('---\n');
+    const content = hasFrontmatter
+      ? text
+      : `---\ntitle: ${fileName}\nstatus: Draft\nicon: "\uD83D\uDCC4"\nbreadcrumb: ${breadcrumb}\ncover: \n---\n\n${text}`;
+    dispatch({
+      type: 'ADD_DOCUMENT',
+      doc: {
+        id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title: fileName,
+        icon: '\uD83D\uDCC4',
+        content,
+        parentId: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        isFavorite: false,
+      },
+    });
+  };
+  reader.readAsText(file);
+}
+
+async function scanDirectory(
+  dirHandle: FileSystemDirectoryHandle,
+  path: string,
+  dispatch: ReturnType<typeof useApp>['dispatch']
+) {
+  for await (const entry of (dirHandle as unknown as AsyncIterable<FileSystemHandle>)) {
+    if (entry.kind === 'file' && isMdFile(entry.name)) {
+      const file = await (entry as FileSystemFileHandle).getFile();
+      importFileToStore(file, path, dispatch);
+    } else if (entry.kind === 'directory') {
+      await scanDirectory(entry as FileSystemDirectoryHandle, `${path} / ${entry.name}`, dispatch);
+    }
+  }
+}
 
 interface TreeItemProps {
   doc: Document;
@@ -106,6 +153,42 @@ interface Props {
 export default function LeftSidebar({ onOpenCommandPalette }: Props) {
   const { state, dispatch, addDocument } = useApp();
 
+  const handleOpenFile = useCallback(async () => {
+    try {
+      const handles = await (window as unknown as { showOpenFilePicker: (opts: unknown) => Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
+        multiple: true,
+        types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md', '.markdown', '.mdx'] } }],
+      });
+      for (const handle of handles) {
+        const file = await handle.getFile();
+        importFileToStore(file, 'Imported', dispatch);
+      }
+    } catch {
+      // User cancelled or API not supported — fallback to input
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.md,.markdown,.mdx';
+      input.multiple = true;
+      input.onchange = () => {
+        if (input.files) {
+          for (const file of Array.from(input.files)) {
+            importFileToStore(file, 'Imported', dispatch);
+          }
+        }
+      };
+      input.click();
+    }
+  }, [dispatch]);
+
+  const handleOpenFolder = useCallback(async () => {
+    try {
+      const dirHandle = await (window as unknown as { showDirectoryPicker: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker();
+      await scanDirectory(dirHandle, dirHandle.name, dispatch);
+    } catch {
+      // User cancelled or API not supported
+    }
+  }, [dispatch]);
+
   const favorites = state.documents.filter(d => d.isFavorite);
   const rootDocs = state.documents.filter(d => d.parentId === null);
 
@@ -146,6 +229,24 @@ export default function LeftSidebar({ onOpenCommandPalette }: Props) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           New Page
+        </button>
+        <button
+          onClick={handleOpenFile}
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-stone-500 hover:bg-stone-100 transition-colors text-[13px]"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Open File
+        </button>
+        <button
+          onClick={handleOpenFolder}
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-stone-500 hover:bg-stone-100 transition-colors text-[13px]"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          Open Folder
         </button>
       </div>
 

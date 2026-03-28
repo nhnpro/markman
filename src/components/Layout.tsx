@@ -166,9 +166,20 @@ export default function Layout() {
     return () => clearInterval(interval);
   }, [state.isFlipped, activeDoc]);
 
+  // Word count & reading time
+  const wordCount = activeContent ? activeContent.split(/\s+/).filter(Boolean).length : 0;
+  const readingTime = Math.max(1, Math.ceil(wordCount / 200));
+
+  // Apply dark mode to document
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', state.darkMode);
+  }, [state.darkMode]);
+
   return (
     <div
-      className="h-screen flex flex-col bg-stone-100 relative"
+      className={`h-screen flex flex-col relative transition-colors ${
+        state.darkMode ? 'bg-stone-900' : 'bg-stone-100'
+      }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -191,9 +202,9 @@ export default function Layout() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar */}
         <div
-          className={`shrink-0 border-r border-stone-200/60 transition-all duration-300 ease-in-out overflow-hidden ${
-            state.leftSidebarOpen ? 'w-[260px]' : 'w-0 border-r-0'
-          }`}
+          className={`shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${
+            state.leftSidebarOpen ? 'w-[260px]' : 'w-0'
+          } ${state.darkMode ? 'border-r border-stone-700/60' : 'border-r border-stone-200/60'}`}
         >
           <div className="w-[260px] h-full">
             <LeftSidebar onOpenCommandPalette={openPalette} />
@@ -243,15 +254,17 @@ export default function Layout() {
           </div>
 
           {/* Bottom bar */}
-          <div className="bg-white/95 backdrop-blur-sm border-t border-stone-200 px-3 py-2 flex items-center gap-1 shrink-0">
+          <div className={`backdrop-blur-sm border-t px-3 py-2 flex items-center gap-1 shrink-0 transition-colors ${
+            state.darkMode ? 'bg-stone-900/95 border-stone-700' : 'bg-white/95 border-stone-200'
+          }`}>
             {/* Edit / Preview toggle */}
-            <div className="flex items-center bg-stone-100 rounded-lg p-0.5">
+            <div className={`flex items-center rounded-lg p-0.5 ${state.darkMode ? 'bg-stone-800' : 'bg-stone-100'}`}>
               <button
                 onClick={() => { if (state.editMode) dispatch({ type: 'TOGGLE_EDIT_MODE' }); }}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 flex items-center gap-1.5 ${
                   !state.editMode
-                    ? 'bg-white text-stone-800 shadow-sm'
-                    : 'text-stone-500 hover:text-stone-600'
+                    ? (state.darkMode ? 'bg-stone-700 text-stone-200 shadow-sm' : 'bg-white text-stone-800 shadow-sm')
+                    : (state.darkMode ? 'text-stone-400 hover:text-stone-300' : 'text-stone-500 hover:text-stone-600')
                 }`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -264,8 +277,8 @@ export default function Layout() {
                 onClick={() => { if (!state.editMode) dispatch({ type: 'TOGGLE_EDIT_MODE' }); }}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 flex items-center gap-1.5 ${
                   state.editMode
-                    ? 'bg-white text-stone-800 shadow-sm'
-                    : 'text-stone-500 hover:text-stone-600'
+                    ? (state.darkMode ? 'bg-stone-700 text-stone-200 shadow-sm' : 'bg-white text-stone-800 shadow-sm')
+                    : (state.darkMode ? 'text-stone-400 hover:text-stone-300' : 'text-stone-500 hover:text-stone-600')
                 }`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -275,6 +288,11 @@ export default function Layout() {
               </button>
             </div>
 
+            {/* Word count & reading time */}
+            <div className={`text-[11px] tabular-nums ml-3 ${state.darkMode ? 'text-stone-500' : 'text-stone-400'}`}>
+              {wordCount} words &middot; {readingTime} min read
+            </div>
+
             <div className="flex-1" />
 
             {/* Source toggle */}
@@ -282,15 +300,17 @@ export default function Layout() {
               onClick={() => dispatch({ type: 'SET_FLIPPED', flipped: !state.isFlipped })}
               className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150 flex items-center gap-1.5 ${
                 state.isFlipped
-                  ? 'bg-stone-200 text-stone-800 shadow-sm'
-                  : 'text-stone-500 hover:text-stone-700 hover:bg-stone-100'
+                  ? (state.darkMode ? 'bg-stone-700 text-stone-200 shadow-sm' : 'bg-stone-200 text-stone-800 shadow-sm')
+                  : (state.darkMode ? 'text-stone-400 hover:text-stone-300 hover:bg-stone-800' : 'text-stone-500 hover:text-stone-700 hover:bg-stone-100')
               }`}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
               </svg>
               {state.isFlipped ? 'Preview' : 'Source'}
-              <kbd className="bg-stone-100 px-1 py-0.5 rounded text-[9px] font-mono border border-stone-200 ml-1">{'\u2318'}E</kbd>
+              <kbd className={`px-1 py-0.5 rounded text-[9px] font-mono border ml-1 ${
+                state.darkMode ? 'bg-stone-800 border-stone-700' : 'bg-stone-100 border-stone-200'
+              }`}>{'\u2318'}E</kbd>
             </button>
           </div>
         </div>

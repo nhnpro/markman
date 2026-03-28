@@ -17,6 +17,7 @@ function loadState(): AppState {
           rightSidebarOpen: parsed.rightSidebarOpen ?? true,
           isFlipped: false,
           editMode: parsed.editMode ?? false,
+          darkMode: parsed.darkMode ?? false,
         };
       }
     }
@@ -29,6 +30,7 @@ function loadState(): AppState {
     rightSidebarOpen: true,
     isFlipped: false,
     editMode: false,
+    darkMode: false,
   };
 }
 
@@ -85,6 +87,9 @@ function reducer(state: AppState, action: AppAction): AppState {
 
     case 'TOGGLE_EDIT_MODE':
       return { ...state, editMode: !state.editMode };
+
+    case 'TOGGLE_DARK_MODE':
+      return { ...state, darkMode: !state.darkMode };
 
     default:
       return state;
