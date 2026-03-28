@@ -267,7 +267,7 @@ export default function PageFlip({ frontContent, backContent, isFlipped, onFlipC
         className="absolute inset-0 overflow-hidden pointer-events-none"
         style={{ clipPath: reflectedClip }}
       >
-        <div className="absolute inset-0 bg-white" />
+        <div className="absolute inset-0 bg-white dark:bg-stone-800" />
       </div>
 
     </div>

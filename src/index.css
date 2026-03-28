@@ -1,5 +1,37 @@
 @import "tailwindcss";
 
+:root {
+  --bg-primary: #f5f5f4;
+  --bg-surface: #ffffff;
+  --bg-sidebar: rgba(250, 250, 249, 0.8);
+  --bg-hover: #f5f5f4;
+  --bg-active: rgba(231, 229, 228, 0.7);
+  --bg-input: #f5f5f4;
+  --border: rgba(231, 229, 228, 0.6);
+  --border-strong: #e7e5e4;
+  --text-primary: #1c1917;
+  --text-secondary: #57534e;
+  --text-muted: #a8a29e;
+  --text-faint: #d6d3d1;
+  --shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.dark {
+  --bg-primary: #1c1917;
+  --bg-surface: #292524;
+  --bg-sidebar: rgba(28, 25, 23, 0.9);
+  --bg-hover: #3a3633;
+  --bg-active: rgba(68, 64, 60, 0.7);
+  --bg-input: #3a3633;
+  --border: rgba(68, 64, 60, 0.6);
+  --border-strong: #44403c;
+  --text-primary: #fafaf9;
+  --text-secondary: #d6d3d1;
+  --text-muted: #78716c;
+  --text-faint: #57534e;
+  --shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
 .sidebar-scroll::-webkit-scrollbar {
   width: 4px;
 }
@@ -9,73 +41,179 @@
 }
 
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: #d6d3d1;
+  background: var(--text-faint);
   border-radius: 2px;
 }
 
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: #a8a29e;
+  background: var(--text-muted);
 }
 
 /* MDXEditor theme overrides */
 .mdx-editor-wrapper .mdxeditor {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   border: none;
+  --accentBase: var(--bg-surface);
+  --accentBgSubtle: var(--bg-hover);
+  --accentText: var(--text-primary);
 }
 
 .mdx-editor-wrapper .mdxeditor-toolbar {
   border-radius: 8px;
-  border: 1px solid #e7e5e4;
-  background: #fafaf9;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-sidebar);
   margin-bottom: 12px;
 }
 
 .mdx-editor-wrapper .mdxeditor-toolbar button {
   border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.mdx-editor-wrapper .mdxeditor-toolbar button:hover {
+  background: var(--bg-hover);
 }
 
 .mdx-editor-wrapper .mdxeditor-toolbar button[data-state="on"] {
-  background: #e7e5e4;
+  background: var(--bg-active);
+  color: var(--text-primary);
 }
 
-/* Task list checkbox styling */
 .mdx-editor-wrapper [role="checkbox"] {
   accent-color: #d97706;
 }
 
 .mdx-editor-wrapper li[role="listitem"] {
   font-size: 15px;
-  color: #57534e;
+  color: var(--text-secondary);
 }
 
-/* Blockquote styling */
 .mdx-editor-wrapper blockquote {
   border-left: 3px solid #fbbf24;
-  background: rgba(254, 243, 199, 0.3);
+  background: rgba(254, 243, 199, 0.15);
   padding: 8px 16px;
   border-radius: 0 8px 8px 0;
   font-style: italic;
 }
 
-/* Code styling */
 .mdx-editor-wrapper code {
-  background: #f0fdf4;
+  background: var(--bg-hover);
   color: #15803d;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 13px;
   font-family: ui-monospace, Consolas, monospace;
-  border: 1px solid #bbf7d0;
+  border: 1px solid var(--border-strong);
 }
 
-/* Link styling */
+.dark .mdx-editor-wrapper code {
+  color: #86efac;
+}
+
 .mdx-editor-wrapper a {
-  color: #78716c;
+  color: var(--text-muted);
   text-decoration: underline;
   text-underline-offset: 2px;
-  text-decoration-color: #d6d3d1;
+  text-decoration-color: var(--text-faint);
 }
 
 .mdx-editor-wrapper a:hover {
-  color: #292524;
+  color: var(--text-primary);
+}
+
+/* MDXEditor content area dark mode */
+.dark .mdx-editor-wrapper [contenteditable] {
+  color: var(--text-secondary);
+}
+
+.dark .mdx-editor-wrapper [contenteditable] h1,
+.dark .mdx-editor-wrapper [contenteditable] h2,
+.dark .mdx-editor-wrapper [contenteditable] h3 {
+  color: var(--text-primary);
+}
+
+/* MDXEditor select/popover dark mode */
+.dark .mdx-editor-wrapper select,
+.dark .mdx-editor-wrapper [role="listbox"],
+.dark .mdx-editor-wrapper [data-radix-popper-content-wrapper] > div {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-strong) !important;
+}
+
+/* ─── Global dark mode overrides ─── */
+/* Sidebar */
+.dark .bg-stone-50\/80,
+.dark .bg-stone-50 {
+  background-color: rgba(28, 25, 23, 0.9) !important;
+}
+
+/* Surface / card backgrounds */
+.dark .bg-white {
+  background-color: #292524 !important;
+}
+.dark .bg-white\/80 {
+  background-color: rgba(41, 37, 36, 0.8) !important;
+}
+.dark .bg-white\/95 {
+  background-color: rgba(41, 37, 36, 0.95) !important;
+}
+.dark .bg-white\/90 {
+  background-color: rgba(41, 37, 36, 0.9) !important;
+}
+
+/* Text */
+.dark .text-stone-900 { color: #fafaf9 !important; }
+.dark .text-stone-800 { color: #e7e5e4 !important; }
+.dark .text-stone-700 { color: #d6d3d1 !important; }
+.dark .text-stone-600 { color: #a8a29e !important; }
+.dark .text-stone-500 { color: #78716c !important; }
+.dark .text-stone-400 { color: #57534e !important; }
+
+/* Backgrounds */
+.dark .bg-stone-100 { background-color: #3a3633 !important; }
+.dark .bg-stone-200 { background-color: #44403c !important; }
+.dark .bg-stone-200\/60 { background-color: rgba(68,64,60,0.6) !important; }
+.dark .bg-stone-200\/70 { background-color: rgba(68,64,60,0.7) !important; }
+
+/* Hover states */
+.dark .hover\:bg-stone-100:hover { background-color: #3a3633 !important; }
+.dark .hover\:bg-stone-200:hover { background-color: #44403c !important; }
+.dark .hover\:bg-stone-50:hover { background-color: #3a3633 !important; }
+.dark .hover\:text-stone-600:hover { color: #d6d3d1 !important; }
+.dark .hover\:text-stone-700:hover { color: #e7e5e4 !important; }
+.dark .hover\:text-stone-800:hover { color: #fafaf9 !important; }
+
+/* Borders */
+.dark .border-stone-200 { border-color: #44403c !important; }
+.dark .border-stone-200\/60 { border-color: rgba(68,64,60,0.6) !important; }
+.dark .border-stone-100 { border-color: #3a3633 !important; }
+
+/* Status badges — keep their colors */
+.dark .bg-green-50 { background-color: rgba(34,197,94,0.15) !important; }
+.dark .bg-red-50 { background-color: rgba(239,68,68,0.15) !important; }
+.dark .bg-amber-50 { background-color: rgba(245,158,11,0.15) !important; }
+.dark .bg-amber-50\/50 { background-color: rgba(245,158,11,0.1) !important; }
+
+/* Shadows */
+.dark .shadow-lg { box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important; }
+.dark .shadow-2xl { box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important; }
+
+/* Page flip white back */
+.dark .bg-white.absolute { background-color: #292524 !important; }
+
+/* Inline code in preview */
+.dark .bg-green-50 code,
+.dark code.bg-green-50 {
+  background-color: rgba(34,197,94,0.15) !important;
+  color: #86efac !important;
+  border-color: rgba(34,197,94,0.3) !important;
+}
+
+/* Command palette */
+.dark [class*="fixed"] .bg-white {
+  background-color: #292524 !important;
+}
+.dark .bg-black\/20 {
+  background-color: rgba(0,0,0,0.5) !important;
 }
