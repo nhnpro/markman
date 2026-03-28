@@ -10,7 +10,7 @@ import SourceView, { type SourceViewHandle } from './SourceView';
 import CommandPalette from './CommandPalette';
 
 export default function Layout() {
-  const { state, dispatch, activeDoc, activeMeta, activeContent } = useApp();
+  const { state, dispatch, activeDoc, activeMeta, activeContent, updateContent, handleUndo, handleRedo, handleSave, handleSaveAs } = useApp();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [cursorLine, setCursorLine] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -121,10 +121,8 @@ export default function Layout() {
   }, [importFile, readDirectory]);
 
   const handleContentChange = useCallback((content: string) => {
-    if (activeDoc) {
-      dispatch({ type: 'UPDATE_DOCUMENT', id: activeDoc.id, content });
-    }
-  }, [activeDoc, dispatch]);
+    updateContent(content);
+  }, [updateContent]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -145,6 +143,22 @@ export default function Layout() {
               dispatch({ type: 'TOGGLE_RIGHT_SIDEBAR' });
             } else {
               dispatch({ type: 'TOGGLE_LEFT_SIDEBAR' });
+            }
+            break;
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              handleRedo();
+            } else {
+              handleUndo();
+            }
+            break;
+          case 's':
+            e.preventDefault();
+            if (e.shiftKey) {
+              handleSaveAs();
+            } else {
+              handleSave();
             }
             break;
         }

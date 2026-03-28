@@ -6,7 +6,7 @@ interface Props {
 }
 
 export default function TopBar({ onOpenCommandPalette }: Props) {
-  const { state, dispatch, activeMeta, activeContent, activeDoc } = useApp();
+  const { state, dispatch, activeMeta, activeContent, activeDoc, handleUndo, handleRedo, canUndo, canRedo, handleSave, handleSaveAs } = useApp();
 
   const handleExportHTML = useCallback(() => {
     if (!activeDoc) return;
@@ -78,6 +78,36 @@ ${document.querySelector('.mdx-editor-wrapper [contenteditable]')?.innerHTML
         </span>
       </div>
 
+      {/* Undo / Redo */}
+      <div className="flex items-center gap-0.5 ml-2">
+        <button
+          onClick={handleUndo}
+          disabled={!canUndo}
+          className={`p-1.5 rounded-md transition-colors ${
+            !canUndo ? 'opacity-30 cursor-default' :
+            state.darkMode ? 'hover:text-stone-200 hover:bg-stone-800' : 'hover:text-stone-600 hover:bg-stone-100'
+          }`}
+          title="Undo (Cmd+Z)"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
+          </svg>
+        </button>
+        <button
+          onClick={handleRedo}
+          disabled={!canRedo}
+          className={`p-1.5 rounded-md transition-colors ${
+            !canRedo ? 'opacity-30 cursor-default' :
+            state.darkMode ? 'hover:text-stone-200 hover:bg-stone-800' : 'hover:text-stone-600 hover:bg-stone-100'
+          }`}
+          title="Redo (Cmd+Shift+Z)"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4" />
+          </svg>
+        </button>
+      </div>
+
       <div className="flex-1" />
 
       <button
@@ -94,19 +124,30 @@ ${document.querySelector('.mdx-editor-wrapper [contenteditable]')?.innerHTML
 
       <div className="flex-1" />
 
-      {/* Export dropdown */}
+      {/* File menu dropdown */}
       <div className="relative group">
         <button className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${
           state.darkMode ? 'hover:text-stone-200 hover:bg-stone-800' : 'hover:text-stone-600 hover:bg-stone-100'
         }`}>
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          Export
+          File
         </button>
-        <div className={`absolute right-0 top-full mt-1 rounded-lg shadow-lg border py-1 w-36 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all ${
+        <div className={`absolute right-0 top-full mt-1 rounded-lg shadow-lg border py-1 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 ${
           state.darkMode ? 'bg-stone-800 border-stone-700' : 'bg-white border-stone-200'
         }`}>
+          <button onClick={handleSave} className={`w-full px-3 py-1.5 text-left text-xs flex items-center justify-between ${
+            state.darkMode ? 'text-stone-300 hover:bg-stone-700' : 'text-stone-600 hover:bg-stone-100'
+          }`}>
+            Save <kbd className="text-[10px] opacity-50">{'\u2318'}S</kbd>
+          </button>
+          <button onClick={handleSaveAs} className={`w-full px-3 py-1.5 text-left text-xs flex items-center justify-between ${
+            state.darkMode ? 'text-stone-300 hover:bg-stone-700' : 'text-stone-600 hover:bg-stone-100'
+          }`}>
+            Save As... <kbd className="text-[10px] opacity-50">{'\u2318\u21E7'}S</kbd>
+          </button>
+          <div className={`my-1 border-t ${state.darkMode ? 'border-stone-700' : 'border-stone-100'}`} />
           <button onClick={handleExportHTML} className={`w-full px-3 py-1.5 text-left text-xs ${
             state.darkMode ? 'text-stone-300 hover:bg-stone-700' : 'text-stone-600 hover:bg-stone-100'
           }`}>
