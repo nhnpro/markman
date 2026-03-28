@@ -153,7 +153,46 @@ interface Props {
 export default function LeftSidebar({ onOpenCommandPalette }: Props) {
   const { state, dispatch, addDocument } = useApp();
 
+  const addFileFromContent = useCallback((filePath: string, content: string) => {
+    const fileName = filePath.split('/').pop()?.replace(/\.(md|markdown|mdx)$/i, '') || 'Untitled';
+    const hasFrontmatter = content.startsWith('---\n');
+    const fullContent = hasFrontmatter
+      ? content
+      : `---\ntitle: ${fileName}\nstatus: Draft\nicon: "\uD83D\uDCC4"\nbreadcrumb: Imported\ncover: \n---\n\n${content}`;
+    dispatch({
+      type: 'ADD_DOCUMENT',
+      doc: {
+        id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title: fileName,
+        icon: '\uD83D\uDCC4',
+        content: fullContent,
+        parentId: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        isFavorite: false,
+      },
+    });
+  }, [dispatch]);
+
   const handleOpenFile = useCallback(async () => {
+    // Try Tauri native dialog first
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const { invoke } = await import('@tauri-apps/api/core');
+      const selected = await open({
+        multiple: true,
+        filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdx'] }],
+      });
+      if (!selected) return;
+      const paths = Array.isArray(selected) ? selected : [selected];
+      for (const filePath of paths) {
+        const content = await invoke<string>('read_file', { path: filePath });
+        addFileFromContent(filePath, content);
+      }
+      return;
+    } catch { /* Not Tauri — try browser APIs */ }
+
+    // Browser fallback
     try {
       const handles = await (window as unknown as { showOpenFilePicker: (opts: unknown) => Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
         multiple: true,
@@ -164,7 +203,6 @@ export default function LeftSidebar({ onOpenCommandPalette }: Props) {
         importFileToStore(file, 'Imported', dispatch);
       }
     } catch {
-      // User cancelled or API not supported — fallback to input
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.md,.markdown,.mdx';
@@ -178,16 +216,28 @@ export default function LeftSidebar({ onOpenCommandPalette }: Props) {
       };
       input.click();
     }
-  }, [dispatch]);
+  }, [dispatch, addFileFromContent]);
 
   const handleOpenFolder = useCallback(async () => {
+    // Try Tauri native dialog first
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const { invoke } = await import('@tauri-apps/api/core');
+      const selected = await open({ directory: true });
+      if (!selected) return;
+      const files = await invoke<[string, string][]>('read_md_files_in_dir', { path: selected });
+      for (const [filePath, content] of files) {
+        addFileFromContent(filePath, content);
+      }
+      return;
+    } catch { /* Not Tauri — try browser APIs */ }
+
+    // Browser fallback
     try {
       const dirHandle = await (window as unknown as { showDirectoryPicker: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker();
       await scanDirectory(dirHandle, dirHandle.name, dispatch);
-    } catch {
-      // User cancelled or API not supported
-    }
-  }, [dispatch]);
+    } catch { /* cancelled */ }
+  }, [dispatch, addFileFromContent]);
 
   const favorites = state.documents.filter(d => d.isFavorite);
   const rootDocs = state.documents.filter(d => d.parentId === null);
