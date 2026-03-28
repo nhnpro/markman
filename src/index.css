@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #d6d3d1;
+  border-radius: 2px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a8a29e;
+}
+
+/* MDXEditor theme overrides */
+.mdx-editor-wrapper .mdxeditor {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  border: none;
+}
+
+.mdx-editor-wrapper .mdxeditor-toolbar {
+  border-radius: 8px;
+  border: 1px solid #e7e5e4;
+  background: #fafaf9;
+  margin-bottom: 12px;
+}
+
+.mdx-editor-wrapper .mdxeditor-toolbar button {
+  border-radius: 4px;
+}
+
+.mdx-editor-wrapper .mdxeditor-toolbar button[data-state="on"] {
+  background: #e7e5e4;
+}
+
+/* Task list checkbox styling */
+.mdx-editor-wrapper [role="checkbox"] {
+  accent-color: #d97706;
+}
+
+.mdx-editor-wrapper li[role="listitem"] {
+  font-size: 15px;
+  color: #57534e;
+}
+
+/* Blockquote styling */
+.mdx-editor-wrapper blockquote {
+  border-left: 3px solid #fbbf24;
+  background: rgba(254, 243, 199, 0.3);
+  padding: 8px 16px;
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+}
+
+/* Code styling */
+.mdx-editor-wrapper code {
+  background: #f0fdf4;
+  color: #15803d;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: ui-monospace, Consolas, monospace;
+  border: 1px solid #bbf7d0;
+}
+
+/* Link styling */
+.mdx-editor-wrapper a {
+  color: #78716c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: #d6d3d1;
+}
+
+.mdx-editor-wrapper a:hover {
+  color: #292524;
+}
