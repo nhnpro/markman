@@ -17,6 +17,46 @@ export default function Layout() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const sourceRef = useRef<SourceViewHandle>(null);
 
+  // Listen for file open events from Tauri (double-click on .md file)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        const { invoke } = await import('@tauri-apps/api/core');
+        unlisten = (await listen<string>('open-file', async (event) => {
+          const filePath = event.payload;
+          try {
+            const content = await invoke<string>('read_file', { path: filePath });
+            const fileName = filePath.split('/').pop()?.replace(/\.(md|markdown|mdx)$/i, '') || 'Untitled';
+            const hasFrontmatter = content.startsWith('---\n');
+            const fullContent = hasFrontmatter
+              ? content
+              : `---\ntitle: ${fileName}\nstatus: Draft\nicon: "\uD83D\uDCC4"\nbreadcrumb: Opened\ncover: \n---\n\n${content}`;
+            dispatch({
+              type: 'ADD_DOCUMENT',
+              doc: {
+                id: `doc-${Date.now()}`,
+                title: fileName,
+                icon: '\uD83D\uDCC4',
+                content: fullContent,
+                parentId: null,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                isFavorite: false,
+              },
+            });
+          } catch (err) {
+            console.error('Failed to read file:', err);
+          }
+        })) as unknown as () => void;
+      } catch {
+        // Not running in Tauri — ignore
+      }
+    })();
+    return () => unlisten?.();
+  }, [dispatch]);
+
   const openPalette = useCallback(() => setPaletteOpen(true), []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
 
