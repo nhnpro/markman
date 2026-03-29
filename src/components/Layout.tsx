@@ -8,12 +8,14 @@ import RenderedView from './RenderedView';
 import PreviewView from './PreviewView';
 import SourceView, { type SourceViewHandle } from './SourceView';
 import CommandPalette from './CommandPalette';
+import AboutDialog from './AboutDialog';
 
 export default function Layout() {
   const { state, dispatch, activeDoc, activeMeta, activeContent, updateContent, handleUndo, handleRedo, handleSave, handleSaveAs } = useApp();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [cursorLine, setCursorLine] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sourceRef = useRef<SourceViewHandle>(null);
 
@@ -273,7 +275,7 @@ export default function Layout() {
         </div>
       )}
 
-      <TopBar onOpenCommandPalette={openPalette} />
+      <TopBar onOpenCommandPalette={openPalette} onOpenAbout={() => setAboutOpen(true)} />
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar */}
@@ -405,6 +407,7 @@ export default function Layout() {
 
       {/* Command Palette */}
       <CommandPalette isOpen={paletteOpen} onClose={closePalette} />
+      <AboutDialog isOpen={aboutOpen} onClose={() => setAboutOpen(false)} />
     </div>
   );
 }

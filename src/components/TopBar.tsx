@@ -3,9 +3,10 @@ import { useApp } from '../context/AppContext';
 
 interface Props {
   onOpenCommandPalette: () => void;
+  onOpenAbout: () => void;
 }
 
-export default function TopBar({ onOpenCommandPalette }: Props) {
+export default function TopBar({ onOpenCommandPalette, onOpenAbout }: Props) {
   const { state, dispatch, activeMeta, activeContent, activeDoc, handleUndo, handleRedo, canUndo, canRedo, handleSave, handleSaveAs } = useApp();
 
   const handleExportHTML = useCallback(() => {
@@ -201,6 +202,19 @@ ${document.querySelector('.mdx-editor-wrapper [contenteditable]')?.innerHTML
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+        </svg>
+      </button>
+
+      {/* About */}
+      <button
+        onClick={onOpenAbout}
+        className={`p-1.5 rounded-md transition-colors ${
+          state.darkMode ? 'hover:text-stone-200 hover:bg-stone-800' : 'hover:text-stone-600 hover:bg-stone-100'
+        }`}
+        title="About MarkMan"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </button>
     </div>

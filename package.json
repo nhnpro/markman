@@ -2,7 +2,7 @@
   "name": "markman",
   "description": "A Notion-style markdown document viewer with 3D page-flip animation",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.2",
   "type": "module",
   "scripts": {
     "dev": "vite",

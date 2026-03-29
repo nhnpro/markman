@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/tauri/schema.json",
   "productName": "MarkMan",
-  "version": "1.0.0",
+  "version": "0.0.2",
   "identifier": "com.markman.viewer",
   "build": {
     "beforeDevCommand": "npm run dev",
