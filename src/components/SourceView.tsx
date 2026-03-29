@@ -12,6 +12,9 @@ export interface SourceViewHandle {
   applyFormat: (action: FormatAction) => void;
 }
 
+const LINE_HEIGHT = 24;
+const OVERSCAN = 20; // extra lines rendered above/below viewport
+
 const syntaxHighlight = (line: string, dark: boolean): React.ReactNode => {
   if (/^#{1,6}\s/.test(line)) {
     const match = line.match(/^(#{1,6})\s(.*)$/);
@@ -83,7 +86,6 @@ const highlightInline = (text: string, dark: boolean): React.ReactNode => {
   return parts;
 };
 
-// Compute search match positions
 function findMatches(text: string, query: string): number[] {
   if (!query) return [];
   const indices: number[] = [];
@@ -99,16 +101,14 @@ function findMatches(text: string, query: string): number[] {
   return indices;
 }
 
-// Render a single line with search highlights
 function renderLineWithHighlights(
   lineText: string,
   lineStart: number,
-  matches: number[],
   queryLen: number,
   currentMatchIdx: number,
   allMatchPositions: number[],
 ): React.ReactNode {
-  if (!queryLen || matches.length === 0) {
+  if (!queryLen || allMatchPositions.length === 0) {
     return lineText || '\u00A0';
   }
 
@@ -119,7 +119,6 @@ function renderLineWithHighlights(
 
   for (const matchStart of allMatchPositions) {
     const matchEnd = matchStart + queryLen;
-    // Skip matches not on this line
     if (matchEnd <= lineStart || matchStart >= lineEnd) continue;
 
     const relStart = Math.max(0, matchStart - lineStart);
@@ -129,7 +128,7 @@ function renderLineWithHighlights(
       parts.push(<span key={key++}>{lineText.slice(cursor, relStart)}</span>);
     }
 
-    const isCurrent = matchStart === matches[currentMatchIdx];
+    const isCurrent = currentMatchIdx >= 0 && matchStart === allMatchPositions[currentMatchIdx];
     parts.push(
       <mark
         key={key++}
@@ -153,9 +152,16 @@ const SourceView = forwardRef<SourceViewHandle, Props>(({ raw, onContentChange }
   const dark = state.darkMode;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const goToLineInputRef = useRef<HTMLInputElement>(null);
-  const lines = raw.split('\n');
+
+  // Memoize lines split
+  const lines = useMemo(() => raw.split('\n'), [raw]);
+
+  // Virtualization state
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(800);
 
   // Cursor tracking
   const [cursorLine, setCursorLine] = useState(0);
@@ -172,6 +178,31 @@ const SourceView = forwardRef<SourceViewHandle, Props>(({ raw, onContentChange }
   const [goToLineOpen, setGoToLineOpen] = useState(false);
   const [goToLineValue, setGoToLineValue] = useState('');
 
+  // Attach scroll listener to the overflow-auto parent
+  useEffect(() => {
+    const container = containerRef.current?.closest('.overflow-auto') as HTMLElement;
+    if (!container) return;
+    scrollContainerRef.current = container;
+
+    const onScroll = () => setScrollTop(container.scrollTop);
+    const onResize = () => setViewportHeight(container.clientHeight);
+
+    container.addEventListener('scroll', onScroll, { passive: true });
+    const ro = new ResizeObserver(onResize);
+    ro.observe(container);
+    onResize();
+
+    return () => {
+      container.removeEventListener('scroll', onScroll);
+      ro.disconnect();
+    };
+  }, []);
+
+  // Compute visible line range
+  const totalHeight = lines.length * LINE_HEIGHT;
+  const startLine = Math.max(0, Math.floor(scrollTop / LINE_HEIGHT) - OVERSCAN);
+  const endLine = Math.min(lines.length, Math.ceil((scrollTop + viewportHeight) / LINE_HEIGHT) + OVERSCAN);
+
   const updateCursorPos = useCallback(() => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -183,10 +214,8 @@ const SourceView = forwardRef<SourceViewHandle, Props>(({ raw, onContentChange }
     setCursorCol(col);
   }, [raw]);
 
-  // Search matches
   const matchPositions = useMemo(() => findMatches(raw, findQuery), [raw, findQuery]);
 
-  // Clamp current match index
   useEffect(() => {
     if (matchPositions.length === 0) {
       setCurrentMatchIdx(0);
@@ -195,55 +224,38 @@ const SourceView = forwardRef<SourceViewHandle, Props>(({ raw, onContentChange }
     }
   }, [matchPositions.length, currentMatchIdx]);
 
-  // Scroll to current match
   useEffect(() => {
-    if (matchPositions.length === 0 || !containerRef.current) return;
+    if (matchPositions.length === 0) return;
     const matchStart = matchPositions[currentMatchIdx];
     if (matchStart === undefined) return;
     const lineNum = raw.substring(0, matchStart).split('\n').length - 1;
-    const lineHeight = 24;
-    const container = containerRef.current.closest('.overflow-auto') as HTMLElement;
+    const container = scrollContainerRef.current;
     if (container) {
-      const targetScroll = lineNum * lineHeight - container.clientHeight / 2 + 16;
+      const targetScroll = lineNum * LINE_HEIGHT - container.clientHeight / 2 + 16;
       container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
     }
   }, [currentMatchIdx, matchPositions, raw]);
 
-  // Focus find input when opened
   useEffect(() => {
-    if (findOpen) {
-      requestAnimationFrame(() => findInputRef.current?.focus());
-    }
+    if (findOpen) requestAnimationFrame(() => findInputRef.current?.focus());
   }, [findOpen]);
 
-  // Focus go-to-line input when opened
   useEffect(() => {
-    if (goToLineOpen) {
-      requestAnimationFrame(() => goToLineInputRef.current?.focus());
-    }
+    if (goToLineOpen) requestAnimationFrame(() => goToLineInputRef.current?.focus());
   }, [goToLineOpen]);
 
-  // Keyboard shortcuts (internal to SourceView)
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
       if (e.key === 'f') {
-        e.preventDefault();
-        e.stopPropagation();
-        setReplaceOpen(false);
-        setFindOpen(true);
-        setGoToLineOpen(false);
+        e.preventDefault(); e.stopPropagation();
+        setReplaceOpen(false); setFindOpen(true); setGoToLineOpen(false);
       } else if (e.key === 'h') {
-        e.preventDefault();
-        e.stopPropagation();
-        setFindOpen(true);
-        setReplaceOpen(true);
-        setGoToLineOpen(false);
+        e.preventDefault(); e.stopPropagation();
+        setFindOpen(true); setReplaceOpen(true); setGoToLineOpen(false);
       } else if (e.key === 'g') {
-        e.preventDefault();
-        e.stopPropagation();
-        setGoToLineOpen(true);
-        setFindOpen(false);
+        e.preventDefault(); e.stopPropagation();
+        setGoToLineOpen(true); setFindOpen(false);
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -280,20 +292,16 @@ const SourceView = forwardRef<SourceViewHandle, Props>(({ raw, onContentChange }
     const ta = textareaRef.current;
     if (!ta) return;
 
-    // Compute character offset of target line
     let offset = 0;
-    for (let i = 0; i < lineNum - 1; i++) {
-      offset += lines[i].length + 1;
-    }
+    for (let i = 0; i < lineNum - 1; i++) offset += lines[i].length + 1;
     ta.focus();
     ta.selectionStart = ta.selectionEnd = offset;
     setCursorLine(lineNum - 1);
     setCursorCol(0);
 
-    // Scroll to line
-    const container = containerRef.current?.closest('.overflow-auto') as HTMLElement;
+    const container = scrollContainerRef.current;
     if (container) {
-      const targetScroll = (lineNum - 1) * 24 - container.clientHeight / 2 + 16;
+      const targetScroll = (lineNum - 1) * LINE_HEIGHT - container.clientHeight / 2 + 16;
       container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
     }
     setGoToLineOpen(false);
@@ -305,7 +313,7 @@ const SourceView = forwardRef<SourceViewHandle, Props>(({ raw, onContentChange }
     textareaRef.current?.focus();
   }, []);
 
-  // Precompute line start offsets for highlight rendering
+  // Line start offsets (for search highlight positioning)
   const lineStarts = useMemo(() => {
     const starts: number[] = [0];
     for (let i = 0; i < lines.length - 1; i++) {
@@ -367,6 +375,30 @@ const SourceView = forwardRef<SourceViewHandle, Props>(({ raw, onContentChange }
   const activeLine = dark ? 'bg-stone-800/50' : 'bg-amber-50';
   const statusText = dark ? 'text-stone-500' : 'text-stone-400';
   const statusSep = dark ? 'text-stone-600' : 'text-stone-300';
+
+  // Build visible lines
+  const visibleLines = [];
+  for (let i = startLine; i < endLine; i++) {
+    const line = lines[i];
+    const isActive = i === cursorLine;
+    visibleLines.push(
+      <div key={i} data-line={i} className={`h-6 px-2 whitespace-pre ${isActive ? `${activeLine} rounded` : ''}`}>
+        {findQuery && matchPositions.length > 0
+          ? renderLineWithHighlights(line, lineStarts[i], findQuery.length, currentMatchIdx, matchPositions)
+          : (line === '' ? '\u00A0' : syntaxHighlight(line, dark))
+        }
+      </div>
+    );
+  }
+
+  const visibleLineNums = [];
+  for (let i = startLine; i < endLine; i++) {
+    visibleLineNums.push(
+      <div key={i} className={`${i === cursorLine ? lineNumActive : lineNumInactive} h-6`}>
+        {i + 1}
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className={`${bgMain} min-h-full font-mono text-sm leading-6 relative`}>
@@ -457,24 +489,19 @@ const SourceView = forwardRef<SourceViewHandle, Props>(({ raw, onContentChange }
         </div>
       )}
 
-      {/* Syntax-highlighted display layer */}
-      <div className="flex pointer-events-none">
-        <div className={`py-4 pl-4 pr-3 text-right select-none flex-shrink-0 sticky left-0 ${bgMain}`}>
-          {lines.map((_, i) => (
-            <div key={i} className={`${i === cursorLine ? lineNumActive : lineNumInactive} h-6`}>
-              {i + 1}
-            </div>
-          ))}
+      {/* Virtualized syntax-highlighted display layer */}
+      <div className="flex pointer-events-none" style={{ height: totalHeight + 32 }}>
+        <div
+          className={`py-4 pl-4 pr-3 text-right select-none flex-shrink-0 sticky left-0 ${bgMain}`}
+          style={{ paddingTop: 16 + startLine * LINE_HEIGHT }}
+        >
+          {visibleLineNums}
         </div>
-        <div className="py-4 pr-6 flex-1">
-          {lines.map((line, i) => (
-            <div key={i} data-line={i} className={`h-6 px-2 whitespace-pre ${i === cursorLine ? `${activeLine} rounded` : ''}`}>
-              {findQuery && matchPositions.length > 0
-                ? renderLineWithHighlights(line, lineStarts[i], matchPositions, findQuery.length, currentMatchIdx, matchPositions)
-                : (line === '' ? '\u00A0' : syntaxHighlight(line, dark))
-              }
-            </div>
-          ))}
+        <div
+          className="py-4 pr-6 flex-1"
+          style={{ paddingTop: 16 + startLine * LINE_HEIGHT }}
+        >
+          {visibleLines}
         </div>
       </div>
 
@@ -486,7 +513,8 @@ const SourceView = forwardRef<SourceViewHandle, Props>(({ raw, onContentChange }
         onSelect={updateCursorPos}
         onClick={updateCursorPos}
         onKeyUp={updateCursorPos}
-        className={`absolute inset-0 w-full h-full bg-transparent text-transparent ${caretColor} resize-none outline-none font-mono text-sm leading-6 py-4 pl-[52px] pr-6 whitespace-pre overflow-auto`}
+        className={`absolute inset-0 w-full bg-transparent text-transparent ${caretColor} resize-none outline-none font-mono text-sm leading-6 py-4 pl-[52px] pr-6 whitespace-pre overflow-auto`}
+        style={{ height: totalHeight + 32 }}
         spellCheck={false}
       />
 

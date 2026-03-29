@@ -1,4 +1,4 @@
-import { memo, useEffect, useState, useRef } from 'react';
+import { memo, useEffect, useState, useRef, useCallback } from 'react';
 import type { DocMeta } from '../data/sampleDoc';
 import { slugify } from '../data/sampleDoc';
 
@@ -7,62 +7,70 @@ interface Props {
   content: string;
 }
 
-// Check if running inside Tauri
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+let invokeCache: ((cmd: string, args: Record<string, unknown>) => Promise<string>) | null = null;
 
 async function renderMarkdown(md: string): Promise<string> {
   if (isTauri) {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return invoke<string>('render_markdown', { markdown: md });
+    if (!invokeCache) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      invokeCache = invoke;
+    }
+    return invokeCache('render_markdown', { markdown: md });
   }
-  // Fallback: basic markdown to HTML (for web/dev mode)
   return basicMarkdownToHtml(md);
 }
 
 function basicMarkdownToHtml(md: string): string {
   let html = md
-    // Code blocks
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
-    // Headings
     .replace(/^### (.+)$/gm, (_, t) => `<h3 id="${slugify(t)}">${t}</h3>`)
     .replace(/^## (.+)$/gm, (_, t) => `<h2 id="${slugify(t)}">${t}</h2>`)
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    // HR
     .replace(/^---$/gm, '<hr />')
-    // Bold, italic, code, strikethrough
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/`(.+?)`/g, '<code>$1</code>')
     .replace(/~~(.+?)~~/g, '<del>$1</del>')
-    // Links and images
     .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-    // Blockquotes
     .replace(/^> (.+)$/gm, '<blockquote><p>$1</p></blockquote>')
-    // Task lists
     .replace(/^- \[x\] (.+)$/gm, '<li class="task"><input type="checkbox" checked disabled /> $1</li>')
     .replace(/^- \[ \] (.+)$/gm, '<li class="task"><input type="checkbox" disabled /> $1</li>')
-    // Unordered lists
     .replace(/^- (.+)$/gm, '<li>$1</li>')
-    // Paragraphs (lines not already wrapped)
     .replace(/^(?!<[a-z/])((?!$).+)$/gm, '<p>$1</p>');
-  // Wrap consecutive <li> in <ul>
   html = html.replace(/((?:<li[^>]*>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
   return html;
 }
 
 export default memo(function PreviewView({ meta, content }: Props) {
   const [html, setHtml] = useState('');
-  const contentRef = useRef(content);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const latestContent = useRef(content);
 
-  useEffect(() => {
-    contentRef.current = content;
-    renderMarkdown(content).then(result => {
-      if (contentRef.current === content) {
+  const doRender = useCallback((md: string) => {
+    latestContent.current = md;
+    renderMarkdown(md).then(result => {
+      if (latestContent.current === md) {
         setHtml(result);
       }
     });
-  }, [content]);
+  }, []);
+
+  useEffect(() => {
+    // Render immediately on first load or document switch
+    if (!html || latestContent.current !== content) {
+      clearTimeout(debounceRef.current);
+      // If content is large (>50KB), debounce to avoid lag during fast typing
+      if (content.length > 50000) {
+        debounceRef.current = setTimeout(() => doRender(content), 150);
+      } else {
+        doRender(content);
+      }
+    }
+    return () => clearTimeout(debounceRef.current);
+  }, [content, doRender, html]);
 
   const statusColor = meta.status === 'Published'
     ? 'bg-green-50 text-green-700 border-green-200'

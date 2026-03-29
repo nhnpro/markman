@@ -10,14 +10,22 @@ fn render_markdown(markdown: String) -> String {
     let opts = Options::all();
     let parser = Parser::new_ext(&markdown, opts);
 
-    let mut html_output = String::new();
+    // Pre-allocate output buffer (~1.5x input is typical for HTML expansion)
+    let mut html_output = String::with_capacity(markdown.len() * 3 / 2);
     let mut in_heading = false;
     let mut heading_text = String::new();
     let mut heading_level = 0u8;
 
+    // Collect non-heading events to batch them for push_html
+    let mut batch: Vec<Event> = Vec::new();
+
     for event in parser {
-        match event {
+        match &event {
             Event::Start(Tag::Heading { level, .. }) => {
+                // Flush any batched events first
+                if !batch.is_empty() {
+                    pulldown_cmark::html::push_html(&mut html_output, batch.drain(..));
+                }
                 in_heading = true;
                 heading_text.clear();
                 heading_level = match level {
@@ -31,27 +39,34 @@ fn render_markdown(markdown: String) -> String {
             }
             Event::End(TagEnd::Heading(_)) => {
                 let id = slugify_text(&heading_text);
-                html_output.push_str(&format!(
-                    "<h{} id=\"{}\">{}",
-                    heading_level, id, heading_text
-                ));
-                html_output.push_str(&format!("</h{}>\n", heading_level));
+                html_output.push_str("<h");
+                html_output.push(char::from(b'0' + heading_level));
+                html_output.push_str(" id=\"");
+                html_output.push_str(&id);
+                html_output.push_str("\">");
+                html_output.push_str(&heading_text);
+                html_output.push_str("</h");
+                html_output.push(char::from(b'0' + heading_level));
+                html_output.push_str(">\n");
                 in_heading = false;
             }
             Event::Text(text) if in_heading => {
-                heading_text.push_str(&text);
+                heading_text.push_str(text);
             }
             Event::Code(code) if in_heading => {
-                heading_text.push_str(&format!("<code>{}</code>", code));
+                heading_text.push_str("<code>");
+                heading_text.push_str(code);
+                heading_text.push_str("</code>");
             }
             _ if in_heading => {}
             _ => {
-                // Use pulldown-cmark's built-in HTML rendering for non-heading events
-                let mut tmp = String::new();
-                pulldown_cmark::html::push_html(&mut tmp, std::iter::once(event));
-                html_output.push_str(&tmp);
+                batch.push(event);
             }
         }
+    }
+    // Flush remaining batched events
+    if !batch.is_empty() {
+        pulldown_cmark::html::push_html(&mut html_output, batch.into_iter());
     }
     html_output
 }
@@ -131,7 +146,7 @@ fn fetch_url(url: String) -> Result<String, String> {
     }
 
     let mut resp = ureq::get(&url)
-        .header("User-Agent", "MarkMan/0.0.6")
+        .header("User-Agent", "MarkMan/0.0.7")
         .call()
         .map_err(|e| format!("Fetch failed: {}", e))?;
 

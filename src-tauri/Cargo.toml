@@ -1,6 +1,6 @@
 [package]
 name = "markman"
-version = "0.0.6"
+version = "0.0.7"
 description = "A Notion-style markdown document viewer and editor with three seamless view modes"
 authors = ["nhnpro"]
 edition = "2021"

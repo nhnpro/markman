@@ -51,7 +51,11 @@ MarkMan is aggressively optimized for minimal footprint:
 | ⚡ Vite modules | **38** |
 | 🔧 Build time | **~1 second** |
 
-Markdown rendering is powered by **Rust** (`pulldown-cmark`) — no heavy JS markdown libraries needed.
+**Large file performance:**
+- Virtualized editor — only visible lines are rendered (~100 DOM nodes regardless of file size)
+- Rust-powered markdown rendering with batched event processing
+- Debounced preview for files >50 KB — no lag during fast typing
+- Handles 10,000+ line files smoothly
 
 ---
 
