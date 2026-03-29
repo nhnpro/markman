@@ -15,6 +15,16 @@ export default defineConfig({
   },
   plugins: [react(), tailwindcss()],
   build: {
+    target: 'esnext',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        passes: 2,
+      },
+    },
+    cssMinify: 'lightningcss',
     chunkSizeWarningLimit: 1200,
   },
   clearScreen: false,

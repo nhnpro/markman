@@ -1,93 +1,68 @@
-import { memo } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { memo, useEffect, useState, useRef } from 'react';
 import type { DocMeta } from '../data/sampleDoc';
 import { slugify } from '../data/sampleDoc';
-import type { Components } from 'react-markdown';
-
-function extractText(node: React.ReactNode): string {
-  if (typeof node === 'string') return node;
-  if (typeof node === 'number') return String(node);
-  if (Array.isArray(node)) return node.map(extractText).join('');
-  if (node && typeof node === 'object' && 'props' in node) {
-    const el = node as { props?: { children?: React.ReactNode } };
-    return extractText(el.props?.children);
-  }
-  return '';
-}
 
 interface Props {
   meta: DocMeta;
   content: string;
 }
 
-const components: Components = {
-  h2: ({ children }) => {
-    const id = slugify(extractText(children));
-    return <h2 id={id} className="text-xl font-semibold text-stone-900 mt-8 mb-3 first:mt-0 scroll-mt-4">{children}</h2>;
-  },
-  h3: ({ children }) => {
-    const id = slugify(extractText(children));
-    return <h3 id={id} className="text-lg font-semibold text-stone-800 mt-6 mb-2 scroll-mt-4">{children}</h3>;
-  },
-  p: ({ children }) => (
-    <p className="text-stone-600 leading-relaxed mb-3 text-[15px]">{children}</p>
-  ),
-  ul: ({ children }) => <ul className="space-y-1.5 mb-4 list-none pl-0">{children}</ul>,
-  li: ({ children }) => (
-    <li className="flex items-start gap-2 text-[15px] text-stone-600">
-      <span className="mt-0.5">{children}</span>
-    </li>
-  ),
-  input: ({ checked }) => (
-    <input
-      type="checkbox"
-      checked={checked}
-      readOnly
-      className="mt-1 h-4 w-4 rounded border-stone-300 text-amber-600 accent-amber-600"
-    />
-  ),
-  a: ({ href, children }) => (
-    <a href={href} className="text-stone-500 hover:text-stone-800 underline decoration-stone-300 underline-offset-2 transition-colors">
-      {children}
-    </a>
-  ),
-  strong: ({ children }) => <strong className="font-semibold text-stone-800">{children}</strong>,
-  code: ({ children, className }) => {
-    if (className) return <code className={className}>{children}</code>;
-    return (
-      <code className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded text-[13px] font-mono border border-green-200">
-        {children}
-      </code>
-    );
-  },
-  blockquote: ({ children }) => (
-    <blockquote className="border-l-3 border-amber-400 bg-amber-50/50 pl-4 py-2 my-4 text-stone-600 italic rounded-r-lg">
-      {children}
-    </blockquote>
-  ),
-  hr: () => <hr className="my-6 border-stone-200" />,
-  del: ({ children }) => <del className="text-stone-400 line-through">{children}</del>,
-  table: ({ children }) => (
-    <div className="overflow-x-auto mb-4 -mx-2">
-      <table className="w-full text-[14px] border-collapse table-fixed">{children}</table>
-    </div>
-  ),
-  thead: ({ children }) => <thead className="bg-stone-50">{children}</thead>,
-  th: ({ children }) => (
-    <th className="text-left px-3 py-2 text-stone-700 font-semibold border-b border-stone-200 break-words">{children}</th>
-  ),
-  td: ({ children }) => (
-    <td className="px-3 py-2 text-stone-600 border-b border-stone-100 break-words align-top">{children}</td>
-  ),
-  tr: ({ children }) => <tr className="hover:bg-stone-50/50">{children}</tr>,
-};
+// Check if running inside Tauri
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+async function renderMarkdown(md: string): Promise<string> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<string>('render_markdown', { markdown: md });
+  }
+  // Fallback: basic markdown to HTML (for web/dev mode)
+  return basicMarkdownToHtml(md);
+}
+
+function basicMarkdownToHtml(md: string): string {
+  let html = md
+    // Code blocks
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+    // Headings
+    .replace(/^### (.+)$/gm, (_, t) => `<h3 id="${slugify(t)}">${t}</h3>`)
+    .replace(/^## (.+)$/gm, (_, t) => `<h2 id="${slugify(t)}">${t}</h2>`)
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    // HR
+    .replace(/^---$/gm, '<hr />')
+    // Bold, italic, code, strikethrough
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/~~(.+?)~~/g, '<del>$1</del>')
+    // Links and images
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    // Blockquotes
+    .replace(/^> (.+)$/gm, '<blockquote><p>$1</p></blockquote>')
+    // Task lists
+    .replace(/^- \[x\] (.+)$/gm, '<li class="task"><input type="checkbox" checked disabled /> $1</li>')
+    .replace(/^- \[ \] (.+)$/gm, '<li class="task"><input type="checkbox" disabled /> $1</li>')
+    // Unordered lists
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    // Paragraphs (lines not already wrapped)
+    .replace(/^(?!<[a-z/])((?!$).+)$/gm, '<p>$1</p>');
+  // Wrap consecutive <li> in <ul>
+  html = html.replace(/((?:<li[^>]*>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+  return html;
+}
 
 export default memo(function PreviewView({ meta, content }: Props) {
-  const sections = content.split(/(?=## )/);
-  const importantTasksIdx = sections.findIndex(s => s.startsWith('## Important Tasks'));
-  const knowledgeBaseIdx = sections.findIndex(s => s.startsWith('## Knowledge Base'));
-  const introIdx = sections.findIndex(s => !s.startsWith('## '));
+  const [html, setHtml] = useState('');
+  const contentRef = useRef(content);
+
+  useEffect(() => {
+    contentRef.current = content;
+    renderMarkdown(content).then(result => {
+      if (contentRef.current === content) {
+        setHtml(result);
+      }
+    });
+  }, [content]);
 
   const statusColor = meta.status === 'Published'
     ? 'bg-green-50 text-green-700 border-green-200'
@@ -132,45 +107,10 @@ export default memo(function PreviewView({ meta, content }: Props) {
           )}
         </div>
 
-        {introIdx !== -1 && sections[introIdx] && (
-          <div className="mb-6">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-              {sections[introIdx]}
-            </ReactMarkdown>
-          </div>
-        )}
-
-        {importantTasksIdx !== -1 && knowledgeBaseIdx !== -1 ? (
-          <>
-            <div className="grid grid-cols-2 gap-8 mb-4">
-              <div>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-                  {sections[importantTasksIdx]}
-                </ReactMarkdown>
-              </div>
-              <div>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-                  {sections[knowledgeBaseIdx]}
-                </ReactMarkdown>
-              </div>
-            </div>
-            {sections
-              .filter((_, i) => i !== introIdx && i !== importantTasksIdx && i !== knowledgeBaseIdx)
-              .map((section, i) => (
-                <ReactMarkdown key={i} remarkPlugins={[remarkGfm]} components={components}>
-                  {section}
-                </ReactMarkdown>
-              ))}
-          </>
-        ) : (
-          sections
-            .filter((_, i) => i !== introIdx)
-            .map((section, i) => (
-              <ReactMarkdown key={i} remarkPlugins={[remarkGfm]} components={components}>
-                {section}
-              </ReactMarkdown>
-            ))
-        )}
+        <div
+          className="preview-content"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
       </div>
     </div>
   );

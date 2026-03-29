@@ -66,7 +66,7 @@ export default function AboutDialog({ isOpen, onClose }: Props) {
           }`}>
             <div className={`font-medium mb-1 ${state.darkMode ? 'text-stone-200' : 'text-stone-700'}`}>Created by</div>
             <p className={`text-xs ${state.darkMode ? 'text-stone-400' : 'text-stone-500'}`}>
-              <span className="font-medium">NamNH</span> &mdash; Built with React, TypeScript, Tailwind CSS, MDXEditor, and Tauri.
+              <span className="font-medium">NamNH</span> &mdash; Built with React, TypeScript, Tailwind CSS, and Tauri.
             </p>
           </div>
 

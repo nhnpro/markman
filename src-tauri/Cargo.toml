@@ -1,6 +1,6 @@
 [package]
 name = "markman"
-version = "0.0.5"
+version = "0.0.6"
 description = "A Notion-style markdown document viewer and editor with three seamless view modes"
 authors = ["nhnpro"]
 edition = "2021"
@@ -16,16 +16,13 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["time", "net", "rt-multi-thread", "macros"] }
 tauri-plugin-dialog = "2.6.0"
-reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
-clap = { version = "4", features = ["derive"] }
-axum = "0.8"
+ureq = { version = "3", features = ["rustls"] }
 pulldown-cmark = "0.12"
 
 [profile.release]
 strip = true
 lto = true
 codegen-units = 1
-opt-level = "s"
+opt-level = "z"
 panic = "abort"

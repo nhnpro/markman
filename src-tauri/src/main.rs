@@ -1,68 +1,63 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use clap::{Parser, Subcommand};
-
-#[derive(Parser)]
-#[command(name = "markman", version, about = "A Notion-style markdown viewer and editor")]
-struct Cli {
-    #[command(subcommand)]
-    command: Option<Commands>,
-
-    /// File path or URL to open (shorthand for 'open')
-    #[arg(value_name = "FILE")]
-    file: Option<String>,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Open a markdown file or URL in the GUI
-    Open {
-        /// File path or URL
-        path: String,
-    },
-    /// Serve a markdown file as HTML on localhost
-    Serve {
-        /// Markdown file to serve
-        file: String,
-        /// Port to listen on
-        #[arg(short, long, default_value = "3000")]
-        port: u16,
-    },
-}
-
 fn main() {
-    // First check if this is a bare file arg (no subcommand, no flags)
-    // This handles: markman file.md  and  macOS open-with launching
-    let raw_args: Vec<String> = std::env::args().collect();
+    let args: Vec<String> = std::env::args().skip(1).collect();
 
-    // No args → launch GUI
-    if raw_args.len() <= 1 {
-        markman_lib::run(None);
-        return;
-    }
-
-    // Try clap parsing
-    match Cli::try_parse() {
-        Ok(cli) => match cli.command {
-            Some(Commands::Open { path }) => {
-                markman_lib::run(Some(path));
-            }
-            Some(Commands::Serve { file, port }) => {
-                markman_lib::serve(&file, port);
-            }
-            None => {
-                // No subcommand — use the positional file arg
-                markman_lib::run(cli.file);
-            }
-        },
-        Err(e) => {
-            // If it looks like a file path (not a flag), treat as implicit open
-            let arg = &raw_args[1];
-            if !arg.starts_with('-') {
-                markman_lib::run(Some(arg.clone()));
-            } else {
-                e.exit();
-            }
+    match args.first().map(|s| s.as_str()) {
+        None => markman_lib::run(None),
+        Some("--help" | "-h") => {
+            println!("markman {} — A Notion-style markdown viewer and editor\n", env!("CARGO_PKG_VERSION"));
+            println!("Usage: markman [FILE]");
+            println!("       markman open <FILE>");
+            println!("       markman serve <FILE> [-p PORT]\n");
+            println!("Commands:");
+            println!("  open <FILE>        Open a markdown file in the GUI");
+            println!("  serve <FILE>       Serve a markdown file as HTML on localhost");
+            println!("    -p, --port PORT  Port to listen on (default: 3000)\n");
+            println!("Options:");
+            println!("  -h, --help         Show this help");
+            println!("  -V, --version      Show version");
+        }
+        Some("--version" | "-V") => {
+            println!("markman {}", env!("CARGO_PKG_VERSION"));
+        }
+        Some("open") => {
+            let path = args.get(1).cloned();
+            markman_lib::run(path);
+        }
+        Some("serve") => {
+            let file = args.get(1).unwrap_or_else(|| {
+                eprintln!("Error: 'serve' requires a file argument");
+                std::process::exit(1);
+            });
+            let port = parse_port(&args[2..]);
+            markman_lib::serve(file, port);
+        }
+        Some(arg) if !arg.starts_with('-') => {
+            markman_lib::run(Some(arg.to_string()));
+        }
+        Some(arg) => {
+            eprintln!("Unknown option: {}\nTry 'markman --help'", arg);
+            std::process::exit(1);
         }
     }
+}
+
+fn parse_port(args: &[String]) -> u16 {
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "-p" | "--port" => {
+                return args.get(i + 1)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or_else(|| {
+                        eprintln!("Error: --port requires a number");
+                        std::process::exit(1);
+                    });
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    3000
 }

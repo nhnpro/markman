@@ -4,6 +4,71 @@ use std::path::Path;
 use std::sync::Mutex;
 
 #[tauri::command]
+fn render_markdown(markdown: String) -> String {
+    use pulldown_cmark::{Parser, Options, Event, Tag, TagEnd, HeadingLevel};
+
+    let opts = Options::all();
+    let parser = Parser::new_ext(&markdown, opts);
+
+    let mut html_output = String::new();
+    let mut in_heading = false;
+    let mut heading_text = String::new();
+    let mut heading_level = 0u8;
+
+    for event in parser {
+        match event {
+            Event::Start(Tag::Heading { level, .. }) => {
+                in_heading = true;
+                heading_text.clear();
+                heading_level = match level {
+                    HeadingLevel::H1 => 1,
+                    HeadingLevel::H2 => 2,
+                    HeadingLevel::H3 => 3,
+                    HeadingLevel::H4 => 4,
+                    HeadingLevel::H5 => 5,
+                    HeadingLevel::H6 => 6,
+                };
+            }
+            Event::End(TagEnd::Heading(_)) => {
+                let id = slugify_text(&heading_text);
+                html_output.push_str(&format!(
+                    "<h{} id=\"{}\">{}",
+                    heading_level, id, heading_text
+                ));
+                html_output.push_str(&format!("</h{}>\n", heading_level));
+                in_heading = false;
+            }
+            Event::Text(text) if in_heading => {
+                heading_text.push_str(&text);
+            }
+            Event::Code(code) if in_heading => {
+                heading_text.push_str(&format!("<code>{}</code>", code));
+            }
+            _ if in_heading => {}
+            _ => {
+                // Use pulldown-cmark's built-in HTML rendering for non-heading events
+                let mut tmp = String::new();
+                pulldown_cmark::html::push_html(&mut tmp, std::iter::once(event));
+                html_output.push_str(&tmp);
+            }
+        }
+    }
+    html_output
+}
+
+fn slugify_text(text: &str) -> String {
+    text.chars()
+        .filter_map(|c| {
+            if c.is_alphanumeric() { Some(c.to_ascii_lowercase()) }
+            else if c == ' ' || c == '-' { Some('-') }
+            else { None }
+        })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
+}
+
+#[tauri::command]
 fn read_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
 }
@@ -60,29 +125,22 @@ fn write_file(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn fetch_url(url: String) -> Result<String, String> {
+fn fetch_url(url: String) -> Result<String, String> {
     if !url.starts_with("http://") && !url.starts_with("https://") {
         return Err("Invalid URL: must start with http:// or https://".into());
     }
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
-
-    let resp = client
-        .get(&url)
-        .header("User-Agent", "MarkMan/0.0.5")
-        .send()
-        .await
+    let mut resp = ureq::get(&url)
+        .header("User-Agent", "MarkMan/0.0.6")
+        .call()
         .map_err(|e| format!("Fetch failed: {}", e))?;
 
-    if !resp.status().is_success() {
+    if resp.status() != 200 {
         return Err(format!("HTTP {}", resp.status()));
     }
 
-    resp.text()
-        .await
+    resp.body_mut()
+        .read_to_string()
         .map_err(|e| format!("Read body failed: {}", e))
 }
 
@@ -130,8 +188,8 @@ fn get_pending_file() -> Option<String> {
 fn queue_open_file(handle: &tauri::AppHandle, file_path: String) {
     *PENDING_FILE.lock().unwrap() = Some(file_path.clone());
     let h = handle.clone();
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(1000));
         let _ = h.emit("open-file", file_path);
     });
 }
@@ -165,7 +223,7 @@ pub fn run(initial_file: Option<String>) {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             read_file, write_file, read_md_files_in_dir,
-            reveal_in_finder, fetch_url, get_pending_file, install_cli
+            reveal_in_finder, fetch_url, get_pending_file, install_cli, render_markdown
         ])
         .setup(move |app| {
             if let Some(file_path) = initial_file {
@@ -229,6 +287,8 @@ pub fn run(initial_file: Option<String>) {
 
 pub fn serve(file: &str, port: u16) {
     use pulldown_cmark::{Parser, Options, html};
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
 
     let content = match std::fs::read_to_string(file) {
         Ok(c) => c,
@@ -290,24 +350,28 @@ pub fn serve(file: &str, port: u16) {
         file = file,
     );
 
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-    rt.block_on(async {
-        use axum::{Router, response::Html, routing::get};
-
-        let page_clone = page.clone();
-        let app = Router::new()
-            .route("/", get(move || async move { Html(page_clone) }));
-
-        let addr = format!("0.0.0.0:{}", port);
-        println!("\x1b[1;32m✓\x1b[0m Serving \x1b[1m{}\x1b[0m at \x1b[4mhttp://localhost:{}\x1b[0m", file, port);
-        println!("  Press Ctrl+C to stop\n");
-
-        let listener = tokio::net::TcpListener::bind(&addr).await.unwrap_or_else(|e| {
-            eprintln!("Error: Cannot bind to port {}: {}", port, e);
-            std::process::exit(1);
-        });
-        axum::serve(listener, app).await.unwrap();
+    let addr = format!("0.0.0.0:{}", port);
+    let listener = TcpListener::bind(&addr).unwrap_or_else(|e| {
+        eprintln!("Error: Cannot bind to port {}: {}", port, e);
+        std::process::exit(1);
     });
+
+    println!("\x1b[1;32m✓\x1b[0m Serving \x1b[1m{}\x1b[0m at \x1b[4mhttp://localhost:{}\x1b[0m", file, port);
+    println!("  Press Ctrl+C to stop\n");
+
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        page.len(),
+        page
+    );
+
+    for stream in listener.incoming() {
+        if let Ok(mut stream) = stream {
+            let mut buf = [0u8; 1024];
+            let _ = stream.read(&mut buf);
+            let _ = stream.write_all(response.as_bytes());
+        }
+    }
 }
 
 fn urlencoding_decode(s: &str) -> String {

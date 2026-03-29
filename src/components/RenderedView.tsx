@@ -1,25 +1,6 @@
-import { useRef, useEffect, useCallback } from 'react';
-import {
-  MDXEditor,
-  headingsPlugin,
-  listsPlugin,
-  linkPlugin,
-  linkDialogPlugin,
-  quotePlugin,
-  thematicBreakPlugin,
-  markdownShortcutPlugin,
-  toolbarPlugin,
-  BoldItalicUnderlineToggles,
-  BlockTypeSelect,
-  ListsToggle,
-  CreateLink,
-  UndoRedo,
-  CodeToggle,
-  Separator,
-  type MDXEditorMethods,
-} from '@mdxeditor/editor';
-import '@mdxeditor/editor/style.css';
+import { useRef, useCallback } from 'react';
 import type { DocMeta } from '../data/sampleDoc';
+import SourceView, { type SourceViewHandle } from './SourceView';
 
 interface Props {
   meta: DocMeta;
@@ -28,27 +9,8 @@ interface Props {
   onContentChange?: (content: string) => void;
 }
 
-export default function RenderedView({ meta, content, rawContent, onContentChange }: Props) {
-  const editorRef = useRef<MDXEditorMethods>(null);
-  const lastExternalContent = useRef(content);
-
-  // Update editor when document switches (content changes externally)
-  useEffect(() => {
-    if (content !== lastExternalContent.current) {
-      editorRef.current?.setMarkdown(content);
-      lastExternalContent.current = content;
-    }
-  }, [content]);
-
-  const handleChange = useCallback((md: string) => {
-    if (!rawContent || !onContentChange) return;
-    lastExternalContent.current = md;
-
-    // Reconstruct the full document with frontmatter
-    const fmMatch = rawContent.match(/^(---\n[\s\S]*?\n---\n)/);
-    const frontmatter = fmMatch ? fmMatch[1] : '';
-    onContentChange(frontmatter + md);
-  }, [rawContent, onContentChange]);
+export default function RenderedView({ meta, rawContent, onContentChange }: Props) {
+  const sourceRef = useRef<SourceViewHandle>(null);
 
   // Status badge color
   const statusColor = meta.status === 'Published'
@@ -59,17 +21,21 @@ export default function RenderedView({ meta, content, rawContent, onContentChang
     ? 'bg-amber-50 text-amber-700 border-amber-200'
     : 'bg-red-50 text-red-600 border-red-200';
 
+  const handleFormat = useCallback((action: 'bold' | 'italic' | 'code' | 'link') => {
+    sourceRef.current?.applyFormat(action);
+  }, []);
+
   return (
-    <div className="bg-white min-h-full">
+    <div className="bg-white min-h-full flex flex-col">
       {/* Cover Image */}
       {meta.cover && (
-        <div className="h-52 w-full overflow-hidden relative">
+        <div className="h-52 w-full overflow-hidden relative shrink-0">
           <img src={meta.cover} alt="Cover" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-white/20 to-transparent" />
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-8 py-6">
+      <div className="max-w-3xl mx-auto px-8 py-6 w-full shrink-0">
         {/* Breadcrumb */}
         {meta.breadcrumb && (
           <div className="mb-4">
@@ -88,7 +54,7 @@ export default function RenderedView({ meta, content, rawContent, onContentChang
         </h1>
 
         {/* Properties */}
-        <div className="flex items-center gap-4 mb-6 text-sm text-stone-500">
+        <div className="flex items-center gap-4 mb-4 text-sm text-stone-500">
           <div className="flex items-center gap-2">
             <span className="text-stone-400">Properties</span>
           </div>
@@ -102,41 +68,44 @@ export default function RenderedView({ meta, content, rawContent, onContentChang
           )}
         </div>
 
-        {/* MDXEditor WYSIWYG */}
-        <div className="mdx-editor-wrapper -mx-3">
-          <MDXEditor
-            ref={editorRef}
-            markdown={content}
-            onChange={handleChange}
-            contentEditableClassName="prose prose-stone max-w-none prose-headings:font-semibold prose-h2:text-xl prose-h3:text-lg prose-p:text-[15px] prose-p:leading-relaxed prose-p:text-stone-600 prose-li:text-[15px] prose-li:text-stone-600 prose-a:text-stone-500 prose-a:underline prose-blockquote:border-amber-400 prose-blockquote:bg-amber-50/50 prose-blockquote:italic prose-code:bg-green-50 prose-code:text-green-700 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:font-mono prose-code:border prose-code:border-green-200 prose-hr:border-stone-200 focus:outline-none min-h-[200px] px-3"
-            plugins={[
-              headingsPlugin(),
-              listsPlugin(),
-              linkPlugin(),
-              linkDialogPlugin(),
-              quotePlugin(),
-              thematicBreakPlugin(),
-              markdownShortcutPlugin(),
-              toolbarPlugin({
-                toolbarContents: () => (
-                  <>
-                    <UndoRedo />
-                    <Separator />
-                    <BlockTypeSelect />
-                    <Separator />
-                    <BoldItalicUnderlineToggles />
-                    <CodeToggle />
-                    <Separator />
-                    <ListsToggle />
-                    <Separator />
-                    <CreateLink />
-                  </>
-                ),
-              }),
-            ]}
-          />
+        {/* Formatting toolbar */}
+        <div className="flex items-center gap-1 mb-2 px-1 py-1.5 rounded-lg border border-stone-200 bg-stone-50/80">
+          <ToolbarBtn onClick={() => handleFormat('bold')} title="Bold (Cmd+B)">
+            <span className="font-bold text-xs">B</span>
+          </ToolbarBtn>
+          <ToolbarBtn onClick={() => handleFormat('italic')} title="Italic (Cmd+I)">
+            <span className="italic text-xs">I</span>
+          </ToolbarBtn>
+          <ToolbarBtn onClick={() => handleFormat('code')} title="Code">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+          </ToolbarBtn>
+          <ToolbarBtn onClick={() => handleFormat('link')} title="Link">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+          </ToolbarBtn>
         </div>
       </div>
+
+      {/* Editor area */}
+      <div className="flex-1 min-h-[400px]">
+        <SourceView
+          ref={sourceRef}
+          raw={rawContent || ''}
+          onContentChange={onContentChange}
+        />
+      </div>
     </div>
+  );
+}
+
+function ToolbarBtn({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title: string }) {
+  return (
+    <button
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      title={title}
+      className="px-2 py-1 rounded text-stone-500 hover:text-stone-700 hover:bg-stone-200 transition-colors"
+    >
+      {children}
+    </button>
   );
 }

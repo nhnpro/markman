@@ -5,12 +5,14 @@
 <h1 align="center">MarkMan</h1>
 
 <p align="center">
-  <strong>A beautiful Notion-style markdown viewer & editor</strong>
+  <strong>A beautiful, ultra-lightweight Notion-style markdown viewer & editor</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/nhnpro/markman/releases/latest"><img src="https://img.shields.io/github/v/release/nhnpro/markman?style=flat-square&color=blue&label=Download" alt="Latest Release"></a>
   <img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-brightgreen?style=flat-square" alt="Platforms">
+  <img src="https://img.shields.io/badge/DMG-2.0%20MB-blueviolet?style=flat-square" alt="DMG Size">
+  <img src="https://img.shields.io/badge/JS%20bundle-82%20KB%20gz-blue?style=flat-square" alt="JS Bundle">
   <img src="https://img.shields.io/github/license/nhnpro/markman?style=flat-square&color=orange" alt="License">
   <img src="https://img.shields.io/github/stars/nhnpro/markman?style=flat-square&color=yellow" alt="Stars">
 </p>
@@ -22,9 +24,9 @@
 | | Feature | Description |
 |---|---|---|
 | 🔄 | **Three View Modes** | Preview, Edit, and Source views with smooth fade transitions (`Cmd+E`) |
-| ✏️ | **WYSIWYG Editor** | Rich text editing with formatting toolbar — bold, italic, headings, lists, links, code |
-| 👁️ | **Preview Mode** | Clean read-only rendered view with GFM table support |
-| 💻 | **Source View** | Dark-themed raw markdown editor with syntax highlighting |
+| ✏️ | **Markdown Editor** | Source editor with formatting toolbar, syntax highlighting, find & replace |
+| 👁️ | **Preview Mode** | Clean rendered view with GFM tables, task lists, and code blocks |
+| 💻 | **Source View** | Dark-themed raw markdown editor with line numbers |
 | 📂 | **Left Sidebar** | Document tree with favorites, search, file/folder import, and settings |
 | 📑 | **Right Sidebar** | Auto-generated table of contents with click-to-scroll |
 | 🔍 | **Command Palette** | `Cmd+K` to quickly search and jump between documents |
@@ -34,6 +36,22 @@
 | 💾 | **Auto-Save** | All changes saved automatically |
 | 🖥️ | **Desktop App** | Native app for macOS, Windows, and Linux via Tauri |
 | 🛠️ | **CLI Mode** | `markman serve file.md` — serve any markdown as styled HTML |
+
+---
+
+## 🪶 Lightweight by Design
+
+MarkMan is aggressively optimized for minimal footprint:
+
+| Metric | Value |
+|---|---|
+| 📦 macOS DMG | **2.0 MB** |
+| �� Binary | **3.4 MB** |
+| 📜 JS bundle (gzip) | **82 KB** |
+| ⚡ Vite modules | **38** |
+| 🔧 Build time | **~1 second** |
+
+Markdown rendering is powered by **Rust** (`pulldown-cmark`) — no heavy JS markdown libraries needed.
 
 ---
 
@@ -90,12 +108,11 @@ npm run tauri build  # Build native desktop app
 | | Technology | Purpose |
 |---|---|---|
 | ⚛️ | React 19 + TypeScript | Frontend framework |
-| ⚡ | Vite 8 | Build tool |
+| ⚡ | Vite 8 + Terser | Build & minification |
 | 🎨 | Tailwind CSS v4 | Styling |
 | 🦀 | Tauri 2 + Rust | Native desktop shell |
-| ✍️ | MDXEditor | WYSIWYG markdown editing |
-| 📖 | react-markdown + remark-gfm | Preview rendering |
-| 🌐 | Axum | CLI server |
+| 📖 | pulldown-cmark (Rust) | Markdown rendering |
+| 🌐 | ureq | HTTP client |
 
 ---
 
