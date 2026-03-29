@@ -174,23 +174,33 @@ export default function LeftSidebar({ onOpenCommandPalette }: Props) {
     });
   }, [dispatch]);
 
+  // Detect if running in Tauri
+  const isTauri = useCallback(() => !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__, []);
+
   const handleOpenFile = useCallback(async () => {
-    // Try Tauri native dialog first
-    try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const { invoke } = await import('@tauri-apps/api/core');
-      const selected = await open({
-        multiple: true,
-        filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdx'] }],
-      });
-      if (!selected) return;
-      const paths = Array.isArray(selected) ? selected : [selected];
-      for (const filePath of paths) {
-        const content = await invoke<string>('read_file', { path: filePath });
-        addFileFromContent(filePath, content);
+    if (isTauri()) {
+      try {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const selected = await open({
+          multiple: true,
+          filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdx'] }],
+        });
+        if (!selected) return;
+        const { invoke } = await import('@tauri-apps/api/core');
+        const paths = Array.isArray(selected) ? selected : [selected];
+        for (const filePath of paths) {
+          try {
+            const content = await invoke<string>('read_file', { path: filePath });
+            addFileFromContent(filePath, content);
+          } catch (err) {
+            console.error('read_file failed:', err);
+          }
+        }
+      } catch (err) {
+        console.error('Tauri open dialog failed:', err);
       }
       return;
-    } catch { /* Not Tauri — try browser APIs */ }
+    }
 
     // Browser fallback
     try {
@@ -216,21 +226,24 @@ export default function LeftSidebar({ onOpenCommandPalette }: Props) {
       };
       input.click();
     }
-  }, [dispatch, addFileFromContent]);
+  }, [dispatch, addFileFromContent, isTauri]);
 
   const handleOpenFolder = useCallback(async () => {
-    // Try Tauri native dialog first
-    try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const { invoke } = await import('@tauri-apps/api/core');
-      const selected = await open({ directory: true });
-      if (!selected) return;
-      const files = await invoke<[string, string][]>('read_md_files_in_dir', { path: selected });
-      for (const [filePath, content] of files) {
-        addFileFromContent(filePath, content);
+    if (isTauri()) {
+      try {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const selected = await open({ directory: true });
+        if (!selected) return;
+        const { invoke } = await import('@tauri-apps/api/core');
+        const files = await invoke<[string, string][]>('read_md_files_in_dir', { path: selected });
+        for (const [filePath, content] of files) {
+          addFileFromContent(filePath, content);
+        }
+      } catch (err) {
+        console.error('Tauri open folder failed:', err);
       }
       return;
-    } catch { /* Not Tauri — try browser APIs */ }
+    }
 
     // Browser fallback
     try {
