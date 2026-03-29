@@ -828,6 +828,28 @@ export default function LeftSidebar({ onOpenCommandPalette, onOpenAbout }: Props
                 </svg>
                 About MarkMan
               </button>
+
+              <div className="border-t border-stone-100 my-1" />
+
+              {/* Install CLI */}
+              <button
+                className="w-full px-3 py-1.5 text-left text-xs text-stone-600 hover:bg-stone-100 flex items-center gap-2"
+                onClick={async () => {
+                  try {
+                    const { invoke } = await import('@tauri-apps/api/core');
+                    const msg = await invoke<string>('install_cli');
+                    window.alert(msg);
+                  } catch (err) {
+                    window.alert(`${err}`);
+                  }
+                  setShowSettings(false);
+                }}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Install CLI
+              </button>
             </div>
           </>
         )}
