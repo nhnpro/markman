@@ -207,8 +207,9 @@ pub fn run(initial_file: Option<String>) {
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app, event| {
-            if let tauri::RunEvent::Opened { urls } = event {
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = &_event {
                 for url in urls {
                     let path = url.to_string();
                     let file_path = if path.starts_with("file://") {
@@ -217,7 +218,7 @@ pub fn run(initial_file: Option<String>) {
                         path
                     };
                     if is_markdown(&file_path) {
-                        queue_open_file(app, file_path);
+                        queue_open_file(_app, file_path);
                     }
                 }
             }
