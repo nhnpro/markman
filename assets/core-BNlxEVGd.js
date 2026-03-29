@@ -1,0 +1,1 @@
+function n(n,_=!1){return window.__TAURI_INTERNALS__.transformCallback(n,_)}async function _(n,_={},o){return window.__TAURI_INTERNALS__.invoke(n,_,o)}export{_ as invoke,n as transformCallback};
