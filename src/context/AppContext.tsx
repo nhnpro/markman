@@ -62,21 +62,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const canUndo = activeDoc ? history.canUndo(activeDoc.id) : false;
   const canRedo = activeDoc ? history.canRedo(activeDoc.id) : false;
 
-  // Save: download as .md
-  const handleSave = useCallback(() => {
-    if (!activeDoc) return;
-    const blob = new Blob([activeDoc.content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${activeMeta.title || 'document'}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [activeDoc, activeMeta]);
+  const isTauri = !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
 
-  // Save As: use File System Access API if available, else fallback to download
+  // Save As: ask user where to save
   const handleSaveAs = useCallback(async () => {
     if (!activeDoc) return;
+
+    if (isTauri) {
+      try {
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const path = await save({
+          defaultPath: `${activeMeta.title || 'document'}.md`,
+          filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdx'] }],
+        });
+        if (!path) return; // cancelled
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('write_file', { path, content: activeDoc.content });
+        // Update the doc's filePath so future saves go to this location
+        dispatch({ type: 'UPDATE_DOCUMENT', id: activeDoc.id, content: activeDoc.content });
+      } catch (err) {
+        console.error('Save As failed:', err);
+      }
+      return;
+    }
+
+    // Browser fallback
     try {
       const handle = await (window as unknown as {
         showSaveFilePicker: (opts: unknown) => Promise<FileSystemFileHandle>;
@@ -88,10 +98,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await writable.write(activeDoc.content);
       await writable.close();
     } catch {
-      // Cancelled or API not available — fallback to regular download
-      handleSave();
+      // Cancelled or API not available — fallback to download
+      const blob = new Blob([activeDoc.content], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${activeMeta.title || 'document'}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
-  }, [activeDoc, activeMeta, handleSave]);
+  }, [activeDoc, activeMeta, dispatch, isTauri]);
+
+  // Save: if doc has a local filePath, write to it directly. Otherwise trigger Save As.
+  const handleSave = useCallback(async () => {
+    if (!activeDoc) return;
+    if (activeDoc.filePath && !/^https?:\/\//i.test(activeDoc.filePath) && isTauri) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('write_file', { path: activeDoc.filePath, content: activeDoc.content });
+      } catch (err) {
+        console.error('Save failed:', err);
+      }
+      return;
+    }
+    handleSaveAs();
+  }, [activeDoc, isTauri, handleSaveAs]);
 
   const value = useMemo(
     () => ({

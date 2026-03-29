@@ -8,28 +8,21 @@ breadcrumb: MarkMan
 cover: https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1200&q=80
 ---
 
-Welcome to **MarkMan** — a beautiful markdown document viewer with a unique page-flip animation. Here's everything you need to know to get started.
+Welcome to **MarkMan** — a beautiful Notion-style markdown document viewer. Write, edit, and read markdown documents in a clean, interactive interface with three seamless view modes.
 
 ## How It Works
 
-MarkMan lets you write, edit, and read markdown documents in a clean Notion-style interface. Every document has two sides — like a real page:
+MarkMan lets you write, edit, and read markdown documents in a Notion-style interface. Switch between three view modes using \`Cmd+E\` or the tab bar at the bottom.
 
-- **Front** — A beautifully rendered preview of your document
-- **Back** — The raw markdown source code
-
-Flip between them by dragging the corner of the page, or pressing \`Cmd+E\`.
-
-## Views
+## View Modes
 
 ### Preview Mode
 
-The default view. Your markdown is rendered as a clean, readable document — headings, lists, links, code blocks, and more. No editing UI, just the content.
-
-Switch to it using the **Preview** button in the bottom bar.
+The default view. Your markdown is rendered as a clean, readable document — headings, lists, links, tables, code blocks, and more. No editing UI, just the content.
 
 ### Edit Mode
 
-Click **Edit** in the bottom bar to activate the WYSIWYG editor. You'll get a formatting toolbar at the top of the document where you can:
+A WYSIWYG editor powered by MDXEditor. You'll get a formatting toolbar at the top where you can:
 
 - **Bold**, **Italic**, **Underline** text
 - Change block types (paragraphs, headings)
@@ -37,52 +30,63 @@ Click **Edit** in the bottom bar to activate the WYSIWYG editor. You'll get a fo
 - Insert **links**
 - Write inline \`code\`
 
-All changes sync directly to the markdown source. Flip to the back to see the raw markdown update in real time.
+All changes sync directly to the markdown source.
 
 ### Source View
 
-Press \`Cmd+E\` or click the **Source** button to flip the page and see the raw markdown. You can edit directly in the source view too — it has syntax highlighting and a dark theme.
+Raw markdown editor with syntax highlighting and a dark theme. You can edit the markdown directly here.
 
-## Page Flip
-
-The signature feature. Drag from the **bottom-right corner** of the page to peel it like a real book page. The back reveals the raw markdown source.
-
-- Drag past the halfway point to complete the flip
-- Release before halfway to snap back
-- Or just press \`Cmd+E\` for an animated flip
+Press \`Cmd+E\` to cycle through all three modes: Preview → Edit → Source.
 
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| \`Cmd+E\` | Flip between preview and source |
+| \`Cmd+E\` | Cycle view mode (Preview → Edit → Source) |
 | \`Cmd+K\` | Open command palette (search pages) |
 | \`Cmd+\\\` | Toggle left sidebar |
 | \`Cmd+Shift+\\\` | Toggle right sidebar |
+| \`Cmd+S\` | Save |
+| \`Cmd+Z\` | Undo |
+| \`Cmd+Shift+Z\` | Redo |
 
 ## Sidebar Navigation
 
 ### Left Sidebar
 
-Your document tree. Create new pages, organize with favorites, and switch between documents. Click the hamburger icon or press \`Cmd+\\\` to toggle it.
+Your document tree. Create new pages, organize with favorites, and switch between documents. Press \`Cmd+\\\` to toggle.
 
 - Click **New Page** to create a blank document
-- Right-click (or use the \`...\` menu) to favorite or delete pages
+- **Open File** or **Open Folder** to import markdown files
+- Right-click any page for context menu (Favorite, Reveal in Finder, Delete)
 - Favorited pages appear at the top for quick access
+- Duplicate files are detected and won't be added twice
 
 ### Right Sidebar
 
-The **Table of Contents** — auto-generated from your document's headings. Click any heading to scroll directly to that section. The current section is highlighted as you scroll.
+The **Table of Contents** — auto-generated from your document's headings. Click any heading to scroll directly to that section. Works in all view modes including Source view.
 
-## Command Palette
+## File Management
 
-Press \`Cmd+K\` to open the command palette. Search across all your documents by title and jump to any page instantly. Use arrow keys to navigate and Enter to open.
+- **Drag & Drop** — Drop \`.md\` files or folders directly onto the window
+- **Open File / Folder** — Use the sidebar buttons or Tauri file dialog
+- **Deduplication** — Files are tracked by path; reopening the same file activates the existing copy
+- **Reveal in Finder** — Right-click any imported file to open its location in Finder
+- **Export** — Export documents as HTML or Markdown via the File menu
+
+## Settings
+
+Click **Settings** at the bottom of the left sidebar to access:
+
+- Dark / Light mode toggle
+- Keyboard shortcuts reference
+- About MarkMan
 
 ## Auto-Save
 
 All your documents are automatically saved to your browser's local storage. Changes are saved within 500ms of your last edit — no save button needed.
 
-> **Tip:** Try creating a new page from the sidebar, write some markdown, then flip the page to see your source code. That's the MarkMan experience!
+> **Tip:** Try importing a markdown file, then press \`Cmd+E\` to cycle through Preview, Edit, and Source views!
 `;
 
 export const sampleDocuments: Document[] = [

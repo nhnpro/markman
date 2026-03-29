@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { DocMeta } from '../data/sampleDoc';
@@ -67,9 +68,22 @@ const components: Components = {
   ),
   hr: () => <hr className="my-6 border-stone-200" />,
   del: ({ children }) => <del className="text-stone-400 line-through">{children}</del>,
+  table: ({ children }) => (
+    <div className="overflow-x-auto mb-4 -mx-2">
+      <table className="w-full text-[14px] border-collapse table-fixed">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-stone-50">{children}</thead>,
+  th: ({ children }) => (
+    <th className="text-left px-3 py-2 text-stone-700 font-semibold border-b border-stone-200 break-words">{children}</th>
+  ),
+  td: ({ children }) => (
+    <td className="px-3 py-2 text-stone-600 border-b border-stone-100 break-words align-top">{children}</td>
+  ),
+  tr: ({ children }) => <tr className="hover:bg-stone-50/50">{children}</tr>,
 };
 
-export default function PreviewView({ meta, content }: Props) {
+export default memo(function PreviewView({ meta, content }: Props) {
   const sections = content.split(/(?=## )/);
   const importantTasksIdx = sections.findIndex(s => s.startsWith('## Important Tasks'));
   const knowledgeBaseIdx = sections.findIndex(s => s.startsWith('## Knowledge Base'));
@@ -92,7 +106,7 @@ export default function PreviewView({ meta, content }: Props) {
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-8 py-6">
+      <div className="max-w-4xl mx-auto px-8 py-6">
         {meta.breadcrumb && (
           <div className="mb-4">
             <span className="inline-flex items-center gap-1.5 text-sm text-stone-400 bg-stone-100 px-2.5 py-1 rounded-md">
@@ -160,4 +174,4 @@ export default function PreviewView({ meta, content }: Props) {
       </div>
     </div>
   );
-}
+});

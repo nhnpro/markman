@@ -5,13 +5,23 @@ import { useApp } from '../context/AppContext';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  onOpenPath?: (path: string) => void;
 }
 
-export default function CommandPalette({ isOpen, onClose }: Props) {
+function detectInputType(q: string): 'url' | 'filepath' | null {
+  const trimmed = q.trim();
+  if (/^https?:\/\//i.test(trimmed)) return 'url';
+  if (/^[\/~]/.test(trimmed) || /^[A-Z]:\\/i.test(trimmed)) return 'filepath';
+  return null;
+}
+
+export default function CommandPalette({ isOpen, onClose, onOpenPath }: Props) {
   const { state, dispatch } = useApp();
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const inputType = detectInputType(query);
 
   const results = query.trim()
     ? state.documents.filter(d =>
@@ -48,7 +58,13 @@ export default function CommandPalette({ isOpen, onClose }: Props) {
         break;
       case 'Enter':
         e.preventDefault();
-        if (results[selectedIdx]) select(results[selectedIdx].id);
+        if (inputType && selectedIdx === 0) {
+          onOpenPath?.(query.trim());
+          onClose();
+        } else {
+          const docIdx = inputType ? selectedIdx - 1 : selectedIdx;
+          if (results[docIdx]) select(results[docIdx].id);
+        }
         break;
       case 'Escape':
         onClose();
@@ -86,36 +102,58 @@ export default function CommandPalette({ isOpen, onClose }: Props) {
 
         {/* Results */}
         <div className="max-h-[320px] overflow-y-auto py-1">
-          {results.length === 0 ? (
+          {/* Open URL/File action */}
+          {inputType && (
+            <button
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                selectedIdx === 0
+                  ? 'bg-amber-50 text-amber-900'
+                  : 'text-stone-600 hover:bg-stone-50'
+              }`}
+              onClick={() => { onOpenPath?.(query.trim()); onClose(); }}
+              onMouseEnter={() => setSelectedIdx(0)}
+            >
+              <span className="text-lg">{inputType === 'url' ? '\uD83C\uDF10' : '\uD83D\uDCC2'}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium">Open {inputType === 'url' ? 'URL' : 'File'}</div>
+                <div className="text-[11px] text-stone-400 truncate">{query.trim()}</div>
+              </div>
+              <kbd className="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200 font-mono">{'\u21B5'}</kbd>
+            </button>
+          )}
+          {results.length === 0 && !inputType ? (
             <div className="px-4 py-6 text-center text-sm text-stone-400">
               No results found
             </div>
           ) : (
-            results.map((doc, i) => (
-              <button
-                key={doc.id}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                  i === selectedIdx
-                    ? 'bg-stone-100 text-stone-900'
-                    : 'text-stone-600 hover:bg-stone-50'
-                }`}
-                onClick={() => select(doc.id)}
-                onMouseEnter={() => setSelectedIdx(i)}
-              >
-                <span className="text-lg">{doc.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{doc.title}</div>
-                  {doc.parentId && (
-                    <div className="text-[11px] text-stone-400 truncate">
-                      in {state.documents.find(d => d.id === doc.parentId)?.title || 'Pages'}
-                    </div>
+            results.map((doc, i) => {
+              const idx = inputType ? i + 1 : i;
+              return (
+                <button
+                  key={doc.id}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                    idx === selectedIdx
+                      ? 'bg-stone-100 text-stone-900'
+                      : 'text-stone-600 hover:bg-stone-50'
+                  }`}
+                  onClick={() => select(doc.id)}
+                  onMouseEnter={() => setSelectedIdx(idx)}
+                >
+                  <span className="text-lg">{doc.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{doc.title}</div>
+                    {doc.parentId && (
+                      <div className="text-[11px] text-stone-400 truncate">
+                        in {state.documents.find(d => d.id === doc.parentId)?.title || 'Pages'}
+                      </div>
+                    )}
+                  </div>
+                  {doc.isFavorite && (
+                    <span className="text-amber-400 text-xs">{'\u2605'}</span>
                   )}
-                </div>
-                {doc.isFavorite && (
-                  <span className="text-amber-400 text-xs">{'\u2605'}</span>
-                )}
-              </button>
-            ))
+                </button>
+              );
+            })
           )}
         </div>
 

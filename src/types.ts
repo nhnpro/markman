@@ -7,6 +7,7 @@ export interface Document {
   createdAt: number;
   updatedAt: number;
   isFavorite: boolean;
+  filePath?: string; // original file path for deduplication
 }
 
 export interface AppState {
@@ -14,8 +15,7 @@ export interface AppState {
   activeDocId: string | null;
   leftSidebarOpen: boolean;
   rightSidebarOpen: boolean;
-  isFlipped: boolean;
-  editMode: boolean;
+  viewMode: 'preview' | 'edit' | 'source';
   darkMode: boolean;
 }
 
@@ -24,9 +24,10 @@ export type AppAction =
   | { type: 'ADD_DOCUMENT'; doc: Document }
   | { type: 'UPDATE_DOCUMENT'; id: string; content: string }
   | { type: 'DELETE_DOCUMENT'; id: string }
+  | { type: 'DELETE_DOCUMENTS'; ids: string[] }
   | { type: 'TOGGLE_FAVORITE'; id: string }
   | { type: 'TOGGLE_LEFT_SIDEBAR' }
   | { type: 'TOGGLE_RIGHT_SIDEBAR' }
-  | { type: 'SET_FLIPPED'; flipped: boolean }
-  | { type: 'TOGGLE_EDIT_MODE' }
+  | { type: 'SET_VIEW_MODE'; mode: 'preview' | 'edit' | 'source' }
+  | { type: 'CYCLE_VIEW_MODE' }
   | { type: 'TOGGLE_DARK_MODE' };

@@ -4,30 +4,46 @@ import { useTableOfContents } from '../hooks/useTableOfContents';
 
 interface Props {
   scrollRef: React.RefObject<HTMLElement | null>;
+  sourceScrollRef: React.RefObject<HTMLElement | null>;
 }
 
-export default function RightSidebar({ scrollRef }: Props) {
+export default function RightSidebar({ scrollRef, sourceScrollRef }: Props) {
   const { activeContent, state, dispatch } = useApp();
   const headings = useTableOfContents(activeContent);
 
   const handleClick = useCallback((text: string) => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    // Strategy 1: Find by ID (PreviewView generates these)
-    // Strategy 2: Find by heading text content (works for MDXEditor and any view)
-    const allHeadings = container.querySelectorAll('h1, h2, h3, h4');
-    for (const el of allHeadings) {
-      if (el.textContent?.trim() === text.trim()) {
-        // Scroll the container manually
-        const containerRect = container.getBoundingClientRect();
-        const elRect = el.getBoundingClientRect();
-        const offset = elRect.top - containerRect.top + container.scrollTop - 16;
-        container.scrollTo({ top: offset, behavior: 'smooth' });
-        return;
+    if (state.viewMode === 'source') {
+      // Source view: find the line containing the heading text
+      const container = sourceScrollRef.current;
+      if (!container) return;
+      // Source view renders lines as divs; find one whose text matches a markdown heading
+      const lines = container.querySelectorAll('[data-line]');
+      for (const el of lines) {
+        const lineText = el.textContent?.trim() || '';
+        if (lineText.replace(/^#{1,6}\s*/, '') === text.trim()) {
+          const containerRect = container.getBoundingClientRect();
+          const elRect = el.getBoundingClientRect();
+          const offset = elRect.top - containerRect.top + container.scrollTop - 16;
+          container.scrollTo({ top: offset, behavior: 'smooth' });
+          return;
+        }
+      }
+    } else {
+      // Preview/Edit view: find by heading element text content
+      const container = scrollRef.current;
+      if (!container) return;
+      const allHeadings = container.querySelectorAll('h1, h2, h3, h4');
+      for (const el of allHeadings) {
+        if (el.textContent?.trim() === text.trim()) {
+          const containerRect = container.getBoundingClientRect();
+          const elRect = el.getBoundingClientRect();
+          const offset = elRect.top - containerRect.top + container.scrollTop - 16;
+          container.scrollTo({ top: offset, behavior: 'smooth' });
+          return;
+        }
       }
     }
-  }, [scrollRef]);
+  }, [scrollRef, sourceScrollRef, state.viewMode]);
 
   return (
     <div className="h-full flex flex-col bg-white/80 overflow-hidden">

@@ -15,8 +15,7 @@ function loadState(): AppState {
           activeDocId: parsed.activeDocId || parsed.documents[0].id,
           leftSidebarOpen: parsed.leftSidebarOpen ?? true,
           rightSidebarOpen: parsed.rightSidebarOpen ?? true,
-          isFlipped: false,
-          editMode: parsed.editMode ?? false,
+          viewMode: parsed.viewMode ?? 'preview',
           darkMode: parsed.darkMode ?? false,
         };
       }
@@ -28,8 +27,7 @@ function loadState(): AppState {
     activeDocId: sampleDocuments[0].id,
     leftSidebarOpen: true,
     rightSidebarOpen: true,
-    isFlipped: false,
-    editMode: false,
+    viewMode: 'preview' as const,
     darkMode: false,
   };
 }
@@ -37,14 +35,14 @@ function loadState(): AppState {
 function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'SET_ACTIVE_DOC':
-      return { ...state, activeDocId: action.id, isFlipped: false };
+      return { ...state, activeDocId: action.id, viewMode: 'preview' as const };
 
     case 'ADD_DOCUMENT':
       return {
         ...state,
         documents: [...state.documents, action.doc],
         activeDocId: action.doc.id,
-        isFlipped: false,
+        viewMode: 'preview' as const,
       };
 
     case 'UPDATE_DOCUMENT':
@@ -68,6 +66,18 @@ function reducer(state: AppState, action: AppAction): AppState {
       };
     }
 
+    case 'DELETE_DOCUMENTS': {
+      const idSet = new Set(action.ids);
+      const remaining = state.documents.filter(d => !idSet.has(d.id) && !idSet.has(d.parentId ?? ''));
+      return {
+        ...state,
+        documents: remaining,
+        activeDocId: idSet.has(state.activeDocId ?? '')
+          ? (remaining[0]?.id || null)
+          : state.activeDocId,
+      };
+    }
+
     case 'TOGGLE_FAVORITE':
       return {
         ...state,
@@ -82,11 +92,14 @@ function reducer(state: AppState, action: AppAction): AppState {
     case 'TOGGLE_RIGHT_SIDEBAR':
       return { ...state, rightSidebarOpen: !state.rightSidebarOpen };
 
-    case 'SET_FLIPPED':
-      return { ...state, isFlipped: action.flipped };
+    case 'SET_VIEW_MODE':
+      return { ...state, viewMode: action.mode };
 
-    case 'TOGGLE_EDIT_MODE':
-      return { ...state, editMode: !state.editMode };
+    case 'CYCLE_VIEW_MODE': {
+      const modes: Array<'preview' | 'edit' | 'source'> = ['preview', 'edit', 'source'];
+      const idx = modes.indexOf(state.viewMode);
+      return { ...state, viewMode: modes[(idx + 1) % 3] };
+    }
 
     case 'TOGGLE_DARK_MODE':
       return { ...state, darkMode: !state.darkMode };

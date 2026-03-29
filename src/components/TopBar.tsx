@@ -1,12 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useApp } from '../context/AppContext';
 
 interface Props {
   onOpenCommandPalette: () => void;
   onOpenAbout: () => void;
+  onToggleZen?: () => void;
 }
 
-export default function TopBar({ onOpenCommandPalette, onOpenAbout }: Props) {
+export default function TopBar({ onOpenCommandPalette, onOpenAbout, onToggleZen }: Props) {
   const { state, dispatch, activeMeta, activeContent, activeDoc, handleUndo, handleRedo, canUndo, canRedo, handleSave, handleSaveAs } = useApp();
 
   const handleExportHTML = useCallback(() => {
@@ -179,9 +180,9 @@ ${document.querySelector('.mdx-editor-wrapper [contenteditable]')?.innerHTML
         </svg>
       </button>
 
-      {/* Source toggle */}
+      {/* View mode cycle */}
       <button
-        onClick={() => dispatch({ type: 'SET_FLIPPED', flipped: !state.isFlipped })}
+        onClick={() => dispatch({ type: 'CYCLE_VIEW_MODE' })}
         className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${
           state.darkMode ? 'hover:text-stone-200 hover:bg-stone-800' : 'hover:text-stone-600 hover:bg-stone-100'
         }`}
@@ -189,7 +190,7 @@ ${document.querySelector('.mdx-editor-wrapper [contenteditable]')?.innerHTML
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
         </svg>
-        {state.isFlipped ? 'Preview' : 'Source'}
+        {state.viewMode === 'preview' ? 'Preview' : state.viewMode === 'edit' ? 'Edit' : 'Source'}
       </button>
 
       {/* Right sidebar toggle */}
@@ -202,6 +203,22 @@ ${document.querySelector('.mdx-editor-wrapper [contenteditable]')?.innerHTML
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+        </svg>
+      </button>
+
+      {/* Copy content */}
+      <CopyButton content={activeContent} darkMode={state.darkMode} />
+
+      {/* Zen mode */}
+      <button
+        onClick={onToggleZen}
+        className={`p-1.5 rounded-md transition-colors ${
+          state.darkMode ? 'hover:text-stone-200 hover:bg-stone-800' : 'hover:text-stone-600 hover:bg-stone-100'
+        }`}
+        title="Zen mode (hide all UI)"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
         </svg>
       </button>
 
@@ -220,3 +237,37 @@ ${document.querySelector('.mdx-editor-wrapper [contenteditable]')?.innerHTML
     </div>
   );
 }
+
+function CopyButton({ content, darkMode }: { content: string; darkMode: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    if (!content) return;
+    await navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [content]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={`p-1.5 rounded-md transition-colors ${
+        copied
+          ? 'text-green-500'
+          : (darkMode ? 'hover:text-stone-200 hover:bg-stone-800' : 'hover:text-stone-600 hover:bg-stone-100')
+      }`}
+      title={copied ? 'Copied!' : 'Copy markdown'}
+    >
+      {copied ? (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      ) : (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+

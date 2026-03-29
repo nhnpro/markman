@@ -1,3 +1,4 @@
+declare const APP_VERSION: string;
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 
@@ -38,11 +39,11 @@ export default function AboutDialog({ isOpen, onClose }: Props) {
             MarkMan
           </h2>
           <p className={`text-xs mb-4 ${state.darkMode ? 'text-stone-500' : 'text-stone-400'}`}>
-            Version 0.0.2
+            Version {APP_VERSION}
           </p>
 
           <p className={`text-sm leading-relaxed mb-4 ${state.darkMode ? 'text-stone-300' : 'text-stone-600'}`}>
-            A beautiful Notion-style markdown document viewer with a unique 3D page-flip animation. Write, edit, and read markdown documents in a clean, interactive interface.
+            A beautiful Notion-style markdown document viewer. Write, edit, and read markdown documents in a clean, interactive interface with three seamless view modes.
           </p>
 
           <div className={`rounded-lg px-4 py-3 mb-4 text-left text-sm ${
@@ -50,10 +51,11 @@ export default function AboutDialog({ isOpen, onClose }: Props) {
           }`}>
             <div className={`font-medium mb-2 ${state.darkMode ? 'text-stone-200' : 'text-stone-700'}`}>Features</div>
             <ul className={`space-y-1 text-xs ${state.darkMode ? 'text-stone-400' : 'text-stone-500'}`}>
-              <li>3D corner-peel page flip animation</li>
-              <li>WYSIWYG markdown editor + source view</li>
+              <li>Three view modes: Preview, Edit, Source (Cmd+E to cycle)</li>
+              <li>WYSIWYG markdown editor with formatting toolbar</li>
               <li>Dark mode, command palette, sidebar navigation</li>
-              <li>Drag-and-drop files and folders</li>
+              <li>Drag-and-drop files and folders with deduplication</li>
+              <li>Right-click context menu with Reveal in Finder</li>
               <li>Export as HTML or Markdown</li>
               <li>Auto-save to local storage</li>
             </ul>
