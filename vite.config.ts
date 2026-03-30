@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import pkg from './package.json'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 // In Tauri production build, use relative paths
 // In Tauri dev or plain web dev, use /
 // For GitHub Pages deployment, set VITE_BASE=/markman/ env var
@@ -13,7 +15,7 @@ export default defineConfig({
   define: {
     APP_VERSION: JSON.stringify(pkg.version),
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), cloudflare()],
   build: {
     target: 'esnext',
     minify: 'terser',
