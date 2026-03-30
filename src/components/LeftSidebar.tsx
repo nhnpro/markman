@@ -6,6 +6,8 @@ const isMdFile = (name: string) => /\.(md|markdown|mdx)$/i.test(name);
 
 // Module-level flag to track internal sidebar drags
 export let isInternalDrag = false;
+// Module-level variable to hold the dragged doc ID (fallback for macOS/WebKit dataTransfer issues)
+let draggedDocId: string | null = null;
 
 function importFileToStore(
   file: File,
@@ -114,8 +116,8 @@ function TreeItem({ doc, depth, allDocs, selectMode, selectedIds, onToggleSelect
         style={{ paddingLeft: `${8 + depth * 16}px` }}
         title={tooltipText}
         draggable={!selectMode}
-        onDragStart={(e) => { isInternalDrag = true; e.dataTransfer.setData('application/x-markman-doc', doc.id); e.dataTransfer.setData('text/plain', doc.id); e.dataTransfer.effectAllowed = 'move'; }}
-        onDragEnd={() => { isInternalDrag = false; }}
+        onDragStart={(e) => { isInternalDrag = true; draggedDocId = doc.id; e.dataTransfer.setData('application/x-markman-doc', doc.id); e.dataTransfer.setData('text/plain', doc.id); e.dataTransfer.effectAllowed = 'move'; }}
+        onDragEnd={() => { isInternalDrag = false; draggedDocId = null; }}
         onClick={() => selectMode ? onToggleSelect?.(doc.id) : dispatch({ type: 'SET_ACTIVE_DOC', id: doc.id })}
         onContextMenu={handleContextMenu}
       >
@@ -623,6 +625,7 @@ export default function LeftSidebar({ onOpenCommandPalette, onOpenAbout }: Props
         <div
           className={`mb-3 rounded-lg transition-colors ${dragOverFav ? 'bg-amber-100/60 ring-2 ring-amber-400/50' : ''}`}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; setDragOverFav(true); }}
+          onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverFav(true); }}
           onDragLeave={(e) => {
             // Only clear if leaving the drop zone entirely (not entering a child)
             if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverFav(false);
@@ -630,7 +633,7 @@ export default function LeftSidebar({ onOpenCommandPalette, onOpenAbout }: Props
           onDrop={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            const id = e.dataTransfer.getData('application/x-markman-doc') || e.dataTransfer.getData('text/plain');
+            const id = e.dataTransfer.getData('application/x-markman-doc') || e.dataTransfer.getData('text/plain') || draggedDocId;
             if (id) {
               const doc = state.documents.find(d => d.id === id);
               if (doc && !doc.isFavorite) dispatch({ type: 'TOGGLE_FAVORITE', id });
@@ -657,13 +660,14 @@ export default function LeftSidebar({ onOpenCommandPalette, onOpenAbout }: Props
         <div
           className={`rounded-lg transition-colors ${dragOverPages ? 'bg-stone-100/80 ring-2 ring-stone-300/50' : ''}`}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; setDragOverPages(true); }}
+          onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverPages(true); }}
           onDragLeave={(e) => {
             if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverPages(false);
           }}
           onDrop={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            const id = e.dataTransfer.getData('application/x-markman-doc') || e.dataTransfer.getData('text/plain');
+            const id = e.dataTransfer.getData('application/x-markman-doc') || e.dataTransfer.getData('text/plain') || draggedDocId;
             if (id) {
               const doc = state.documents.find(d => d.id === id);
               if (doc && doc.isFavorite) dispatch({ type: 'TOGGLE_FAVORITE', id });
