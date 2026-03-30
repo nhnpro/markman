@@ -22,6 +22,18 @@ async function renderMarkdown(md: string): Promise<string> {
   return basicMarkdownToHtml(md);
 }
 
+function sanitizeUrl(url: string): string {
+  const trimmed = url.trim().toLowerCase();
+  if (
+    trimmed.startsWith('javascript:') ||
+    trimmed.startsWith('vbscript:') ||
+    trimmed.startsWith('data:text/html')
+  ) {
+    return '#';
+  }
+  return url;
+}
+
 function basicMarkdownToHtml(md: string): string {
   let html = md
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
@@ -33,8 +45,8 @@ function basicMarkdownToHtml(md: string): string {
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/`(.+?)`/g, '<code>$1</code>')
     .replace(/~~(.+?)~~/g, '<del>$1</del>')
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => `<img src="${sanitizeUrl(src)}" alt="${alt}" />`)
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, href) => `<a href="${sanitizeUrl(href)}">${text}</a>`)
     .replace(/^> (.+)$/gm, '<blockquote><p>$1</p></blockquote>')
     .replace(/^- \[x\] (.+)$/gm, '<li class="task"><input type="checkbox" checked disabled /> $1</li>')
     .replace(/^- \[ \] (.+)$/gm, '<li class="task"><input type="checkbox" disabled /> $1</li>')
