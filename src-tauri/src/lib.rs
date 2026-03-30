@@ -3,6 +3,21 @@ use tauri::DragDropEvent;
 use std::path::Path;
 use std::sync::Mutex;
 
+fn html_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#x27;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
 #[tauri::command]
 fn render_markdown(markdown: String) -> String {
     use pulldown_cmark::{Parser, Options, Event, Tag, TagEnd, HeadingLevel};
@@ -51,11 +66,11 @@ fn render_markdown(markdown: String) -> String {
                 in_heading = false;
             }
             Event::Text(text) if in_heading => {
-                heading_text.push_str(text);
+                heading_text.push_str(&html_escape(text));
             }
             Event::Code(code) if in_heading => {
                 heading_text.push_str("<code>");
-                heading_text.push_str(code);
+                heading_text.push_str(&html_escape(code));
                 heading_text.push_str("</code>");
             }
             _ if in_heading => {}
@@ -145,6 +160,10 @@ fn fetch_url(url: String) -> Result<String, String> {
         return Err("Invalid URL: must start with http:// or https://".into());
     }
 
+    if !is_allowed_host(&url) {
+        return Err("Requests to local or private network addresses are not allowed".into());
+    }
+
     let mut resp = ureq::get(&url)
         .header("User-Agent", "MarkMan/0.0.7")
         .call()
@@ -157,6 +176,65 @@ fn fetch_url(url: String) -> Result<String, String> {
     resp.body_mut()
         .read_to_string()
         .map_err(|e| format!("Read body failed: {}", e))
+}
+
+/// Returns false for loopback, link-local, and RFC-1918 private addresses.
+fn is_allowed_host(url: &str) -> bool {
+    let after_scheme = if url.starts_with("https://") {
+        &url[8..]
+    } else {
+        &url[7..]
+    };
+    // Extract host (stop at '/', ':', '?', '#')
+    let host = after_scheme
+        .split(&['/', ':', '?', '#'][..])
+        .next()
+        .unwrap_or("")
+        .to_lowercase();
+
+    // Reject empty host
+    if host.is_empty() {
+        return false;
+    }
+    // Loopback hostnames
+    if host == "localhost" || host == "localhost." {
+        return false;
+    }
+    // IPv6 loopback / unspecified
+    if host == "[::1]" || host == "[::]" || host == "[::ffff:127.0.0.1]" {
+        return false;
+    }
+    // 127.x.x.x loopback
+    if host.starts_with("127.") {
+        return false;
+    }
+    // 0.x.x.x (unspecified)
+    if host.starts_with("0.") {
+        return false;
+    }
+    // RFC-1918: 10.x.x.x
+    if host.starts_with("10.") {
+        return false;
+    }
+    // RFC-1918: 192.168.x.x
+    if host.starts_with("192.168.") {
+        return false;
+    }
+    // RFC-1918: 172.16.x.x – 172.31.x.x
+    if let Some(rest) = host.strip_prefix("172.") {
+        if let Some(second_octet) = rest.split('.').next() {
+            if let Ok(n) = second_octet.parse::<u8>() {
+                if (16..=31).contains(&n) {
+                    return false;
+                }
+            }
+        }
+    }
+    // Link-local: 169.254.x.x
+    if host.starts_with("169.254.") {
+        return false;
+    }
+    true
 }
 
 #[tauri::command]
@@ -330,7 +408,8 @@ pub fn serve(file: &str, port: u16) {
     let mut html_output = String::new();
     html::push_html(&mut html_output, parser);
 
-    let title = file.split('/').last().unwrap_or(file);
+    let title = html_escape(file.split('/').last().unwrap_or(file));
+    let file_escaped = html_escape(file);
     let page = format!(
         r#"<!DOCTYPE html>
 <html lang="en">
@@ -357,15 +436,15 @@ pub fn serve(file: &str, port: u16) {
 </head>
 <body>
 {html_output}
-<div class="footer">Served by MarkMan &middot; <a href="file://{file}">{title}</a></div>
+<div class="footer">Served by MarkMan &middot; <a href="file://{file_escaped}">{title}</a></div>
 </body>
 </html>"#,
         title = title,
         html_output = html_output,
-        file = file,
+        file_escaped = file_escaped,
     );
 
-    let addr = format!("0.0.0.0:{}", port);
+    let addr = format!("127.0.0.1:{}", port);
     let listener = TcpListener::bind(&addr).unwrap_or_else(|e| {
         eprintln!("Error: Cannot bind to port {}: {}", port, e);
         std::process::exit(1);
