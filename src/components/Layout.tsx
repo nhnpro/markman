@@ -43,13 +43,6 @@ export default function Layout() {
 
   // Helper to import a file from a path (Tauri only)
   const importFromPath = useCallback(async (filePath: string) => {
-    // Check if this file is already open — just activate it
-    const existing = state.documents.find(d => d.filePath === filePath);
-    if (existing) {
-      dispatch({ type: 'SET_ACTIVE_DOC', id: existing.id });
-      return;
-    }
-
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const content = await invoke<string>('read_file', { path: filePath });
@@ -58,6 +51,15 @@ export default function Layout() {
       const fullContent = hasFrontmatter
         ? content
         : `---\ntitle: ${fileName}\nstatus: Draft\nicon: "\uD83D\uDCC4"\nbreadcrumb: Opened\ncover: \n---\n\n${content}`;
+
+      // If the file is already open, reload its content from disk and activate it
+      const existing = state.documents.find(d => d.filePath === filePath);
+      if (existing) {
+        dispatch({ type: 'UPDATE_DOCUMENT', id: existing.id, content: fullContent });
+        dispatch({ type: 'SET_ACTIVE_DOC', id: existing.id });
+        return;
+      }
+
       dispatch({
         type: 'ADD_DOCUMENT',
         doc: {
