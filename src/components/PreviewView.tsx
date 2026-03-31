@@ -60,6 +60,7 @@ export default memo(function PreviewView({ meta, content }: Props) {
   const [html, setHtml] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const latestContent = useRef(content);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const doRender = useCallback((md: string) => {
     latestContent.current = md;
@@ -83,6 +84,42 @@ export default memo(function PreviewView({ meta, content }: Props) {
     }
     return () => clearTimeout(debounceRef.current);
   }, [content, doRender, html]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+
+    const handleClick = async (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest('a');
+      if (!anchor) return;
+
+      const href = anchor.getAttribute('href');
+      if (!href) return;
+
+      e.preventDefault();
+
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        if (isTauri) {
+          if (!invokeCache) {
+            const { invoke } = await import('@tauri-apps/api/core');
+            invokeCache = invoke;
+          }
+          invokeCache('open_url', { url: href }).catch(console.error);
+        } else {
+          window.open(href, '_blank', 'noopener,noreferrer');
+        }
+      } else if (href.startsWith('#')) {
+        const id = href.slice(1);
+        const headingEl = document.getElementById(id);
+        if (headingEl) {
+          headingEl.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    };
+
+    el.addEventListener('click', handleClick);
+    return () => el.removeEventListener('click', handleClick);
+  }, [html]);
 
   const statusColor = meta.status === 'Published'
     ? 'bg-green-50 text-green-700 border-green-200'
@@ -128,6 +165,7 @@ export default memo(function PreviewView({ meta, content }: Props) {
         </div>
 
         <div
+          ref={contentRef}
           className="preview-content"
           dangerouslySetInnerHTML={{ __html: html }}
         />
