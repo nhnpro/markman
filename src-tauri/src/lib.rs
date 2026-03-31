@@ -238,6 +238,35 @@ fn is_allowed_host(url: &str) -> bool {
 }
 
 #[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Invalid URL: must start with http:// or https://".into());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", "start", "", &url])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn reveal_in_finder(path: String) -> Result<(), String> {
     let p = Path::new(&path);
     let dir = if p.is_file() {
@@ -316,7 +345,7 @@ pub fn run(initial_file: Option<String>) {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             read_file, write_file, read_md_files_in_dir,
-            reveal_in_finder, fetch_url, get_pending_file, install_cli, render_markdown
+            reveal_in_finder, fetch_url, get_pending_file, install_cli, render_markdown, open_url
         ])
         .setup(move |app| {
             if let Some(file_path) = initial_file {
