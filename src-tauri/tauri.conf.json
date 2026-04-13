@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/tauri/schema.json",
+  "$schema": "https://schema.tauri.app/config/2",
   "productName": "MarkMan",
   "version": "0.0.7",
   "identifier": "com.markman.viewer",
@@ -31,6 +31,8 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "public.app-category.productivity",
+    "copyright": "© 2024 nhnpro. All rights reserved.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -45,7 +47,22 @@
         "description": "Markdown Document",
         "role": "Editor"
       }
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "entitlements": "entitlements.plist",
+      "signingIdentity": null,
+      "providerShortName": null,
+      "infoPlistAdditionalFields": {
+        "NSHumanReadableCopyright": "© 2024 nhnpro. All rights reserved.",
+        "CFBundleLocalizations": ["en"],
+        "CFBundleDevelopmentRegion": "en"
+      }
+    },
+    "iOS": {
+      "developmentTeam": "REPLACE_WITH_APPLE_TEAM_ID",
+      "minimumSystemVersion": "16.0"
+    }
   },
   "plugins": {
     "deep-link": {
